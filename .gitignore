@@ -1,23 +1,10 @@
-# Cache and logs (Symfony2)
-/app/cache/*
-/app/logs/*
-!app/cache/.gitkeep
-!app/logs/.gitkeep
-
-# Email spool folder
-/app/spool/*
-
-# Cache, session files and logs (Symfony3)
+# Cache, session files and logs
 /var/cache/*
 /var/logs/*
 /var/sessions/*
 !var/cache/.gitkeep
 !var/logs/.gitkeep
 !var/sessions/.gitkeep
-
-# Logs (Symfony4)
-/var/log/*
-!var/log/.gitkeep
 
 # Parameters
 /app/config/parameters.yml
@@ -30,6 +17,9 @@
 !bin/console
 !bin/symfony_requirements
 /vendor/
+
+# Docker-compose settings
+docker-compose.yml
 
 # Assets and user uploads
 /web/bundles/
@@ -50,3 +40,12 @@
 
 # Embedded web-server pid file
 /.web-server-pid
+
+# php-cs-fixer ###
+/tools/
+.php-cs-fixer.cache
+
+# IDE's
+.idea
+.vscode
+.DS_store

@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  nurschool-web:
+    container_name: nurschool-web
+    build:
+      context: ./docker/nginx
+      args:
+        UID: $U_ID
+    ports:
+      - 250:80
+    volumes:
+      - ./public:/appdata/www/public
+    depends_on:
+      - nurschool-php
+
+  nurschool-php:
+    container_name: nurschool-php
+    build:
+      context: ./docker/php
+      args:
+        UID: $U_ID
+    environment:
+      PHP_IDE_CONFIG: serverName=Docker
+      ###> XDEBUG 3 ###
+      # Use your client IP here to know host
+      # Linux: run "ip a | grep docker0"
+      # Windows (with WSL2): Run "grep nameserver /etc/resolv.conf | cut -d ' ' -f2"
+      # MacOS: host.docker.internal
+      ###< XDEBUG 3 ### 
+      XDEBUG_CLIENT_HOST: host.docker.internal
+      XDEBUG_CLIENT_PORT: 9003
+      XDEBUG_IDE_KEY: docker
+    volumes:
+      - ./:/appdata/www
+      - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      - ~/.ssh/id_rsa:/home/appuser/.ssh/id_rsa
+      - /tmp/xdebug:/tmp/xdebug
+    depends_on:
+      - nurschool-db
+
+  nurschool-db:
+    container_name: nurschool-db
+    image: mysql:8.0
+    ports:
+      - 36000:3306
+    environment:
+      MYSQL_DATABASE: nurschool
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: root
+    command: mysqld --sql_mode="STRICT_ALL_TABLES,NO_ENGINE_SUBSTITUTION"
+    volumes:
+      - nurschool-db-data:/var/lib/mysql
+
+volumes:
+  nurschool-platform-db-data:
