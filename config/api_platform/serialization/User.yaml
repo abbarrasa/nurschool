@@ -1,0 +1,12 @@
+Nurschool\Entity\User:
+  attributes:
+    email:
+      groups: [ "user:read", "user:register" ]
+    firstname:
+      groups: [ "user:read", "user:register" ]
+    lastname:
+      groups: [ "user:read", "user:register" ]
+    avatar:
+      groups: [ "user:read" ]
+    enabled:
+      groups: [ "user:read" ]

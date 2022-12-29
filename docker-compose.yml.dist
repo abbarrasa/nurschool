@@ -54,4 +54,4 @@ services:
       - nurschool-db-data:/var/lib/mysql
 
 volumes:
-  nurschool-platform-db-data:
+  nurschool-db-data:

@@ -1,0 +1,14 @@
+Nurschool\Entity\User:
+  attributes:
+    normalization_context:
+      groups: [ "user:read" ]
+  collectionOperations:
+    register:
+      method: POST
+      path: /users/register
+      controller: Nurschool\Controller\Api\Register
+      #validate: false
+      denormalization_context:
+        groups: [ "user:register" ]      
+      openapi_context:
+        summary: Register a new user
