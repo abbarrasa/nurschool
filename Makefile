@@ -39,7 +39,7 @@ composer-update: ## Updates composer dependencies
 logs: ## Tails the Symfony dev log
 	U_ID=${UID} docker exec -it --user ${UID} ${DOCKER_CONTAINER} tail -f var/log/dev.log
 
-ssh: ## ssh's into the container
+bash: ## bash into the container
 	U_ID=${UID} docker exec -it --user ${UID} ${DOCKER_CONTAINER} bash
 
 code-style-install: ## Installs php-cs-fixer
