@@ -18,6 +18,7 @@ help: # Shows this help message
 	@egrep '^(.+)\:\ ##\ (.+)' ${MAKEFILE_LIST} | column -t -c 2 -s ':#'
 
 start: ## Starts the containers
+	docker network create nurschool-network || true
 	U_ID=${UID} docker-compose up -d
 
 stop: ## Stops the containers
