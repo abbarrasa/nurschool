@@ -11,12 +11,16 @@
 
 declare(strict_types=1);
 
-namespace Nurschool;
+namespace Nurschool\Api\Action\User;
 
-use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
-use Symfony\Component\HttpKernel\Kernel as BaseKernel;
+use Nurschool\Entity\User;
+use Symfony\Component\HttpKernel\Attribute\AsController;
 
-class Kernel extends BaseKernel
+#[AsController]
+class Register
 {
-    use MicroKernelTrait;
+    public function __invoke(User $user): User
+    {
+        return $user;
+    }
 }
