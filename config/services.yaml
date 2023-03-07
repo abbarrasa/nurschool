@@ -27,3 +27,19 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
     Nurschool\Mailer\MailerInterface: '@Nurschool\Mailer\Sendgrid\SendgridMailer'
+
+    SendGrid:
+        class: \SendGrid
+        arguments: [ '%nurschool_sendgrid.api_key%' ]
+
+    Nurschool\Mailer\Sendgrid\Provider\SendgridProvider:
+        arguments:
+            - '@SendGrid'
+            - '@event_dispatcher'
+            - '%nurschool_sendgrid.disable_delivery%'
+            - '%nurschool_sendgrid.sandbox%'
+
+    Nurschool\Mailer\Sendgrid\SendgridMailer:
+        arguments:
+            - '@Nurschool\Mailer\Sendgrid\Provider\SendgridProvider'
+            - '%nurschool_sendgrid.emails%'

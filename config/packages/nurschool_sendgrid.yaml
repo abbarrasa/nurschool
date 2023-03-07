@@ -1,0 +1,10 @@
+nurschool_sendgrid:
+  api_key: '%env(string:SENDGRID_API_KEY)%'
+  disable_delivery: '%env(bool:SENDGRID_DISABLE_DELIVERY)%'
+  sandbox: '%env(bool:SENDGRID_SANDBOX_MODE)%'
+  default_sender_address: '%env(string:SENDGRID_DEFAULT_ADDRESS)%'
+  default_sender_name: '%env(string:SENDGRID_DEFAULT_NAME)%'
+  emails:
+    sendAccountActivationMail:
+      template: '%env(string:SENDGRID_ACCOUNT_ACTIVATION_TEMPLATE_ID)%'
+      subject: 'Welcome to Nurschool'
