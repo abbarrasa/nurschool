@@ -11,16 +11,11 @@
 
 declare(strict_types=1);
 
-namespace Nurschool\Api\Action\User;
+namespace Nurschool\Service\Avatar;
 
 use Nurschool\Entity\User;
-use Symfony\Component\HttpKernel\Attribute\AsController;
 
-#[AsController]
-class Register
+interface AvatarGeneratorInterface
 {
-    public function __invoke(User $user): User
-    {
-        return $user;
-    }
+    public function generateUserAvatar(User $user, array $options = []): Avatar;
 }

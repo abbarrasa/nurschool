@@ -11,10 +11,19 @@
 
 declare(strict_types=1);
 
-namespace Nurschool\Mailer\Sendgrid\Exception;
+namespace Nurschool\Service\Avatar;
 
-use LogicException;
-
-class SendgridException extends LogicException
+final class Avatar
 {
+    private string $path;
+
+    public function __construct(string $path)
+    {
+        $this->path = $path;
+    }
+
+    public function path(): string
+    {
+        return $this->path;
+    }
 }

@@ -42,7 +42,7 @@ class NurschoolSendgridExtension extends Extension
         $container->setParameter('nurschool_sendgrid.sandbox', $config['sandbox']);
         $container->setParameter('nurschool_sendgrid.emails', $config['emails']);
 
-        $loader = new YamlFileLoader($container, new FileLocator(__DIR__.'/../../../../config'));
+        $loader = new YamlFileLoader($container, new FileLocator(__DIR__.'/../../config'));
         $loader->load('services.yaml');
     }
 }

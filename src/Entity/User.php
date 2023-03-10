@@ -16,37 +16,49 @@ namespace Nurschool\Entity;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
 use Doctrine\ORM\Mapping as ORM;
-use Nurschool\Api\Action\User\Register;
+use Nurschool\Entity\Exception\UserInvalidEmail;
 use Nurschool\Repository\UserRepository;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
+#[UniqueEntity('email')]
 #[ApiResource(operations: [
     new Post(
         name: 'register', 
-        uriTemplate: '/users/register', 
-        controller: Register::class
+        uriTemplate: '/users/register'
     )
 ])]
-class User
+final class User
 {
     #[ORM\Id]
     #[ORM\Column(type: "uuid", unique: true)]
     private UuidInterface $id;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank()]
     private string $firstname;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank()]    
     private string $lastname;
 
     #[ORM\Column(length: 255, unique: true)]
+    #[Assert\NotBlank()]    
+    #[Assert\Email()]
     private string $email;
 
     #[ORM\Column]
     private bool $enabled = false;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $password = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $avatar = null;
 
     public function __construct(?UuidInterface $id = null)
     {
@@ -58,7 +70,7 @@ class User
         return $this->id;
     }
 
-    public function getFirstname(): ?string
+    public function getFirstname(): string
     {
         return $this->firstname;
     }
@@ -70,7 +82,7 @@ class User
         return $this;
     }
 
-    public function getLastname(): ?string
+    public function getLastname(): string
     {
         return $this->lastname;
     }
@@ -89,16 +101,12 @@ class User
 
     public function setEmail(string $email): self
     {
-        if (\filter_var($email, \FILTER_VALIDATE_EMAIL)) {
-            throw new \LogicException('Invalid email');
-        }
-
         $this->email = $email;
 
         return $this;
     }
 
-    public function getEnabled(): ?bool
+    public function getEnabled(): bool
     {
         return $this->enabled;
     }
@@ -106,6 +114,30 @@ class User
     public function setEnabled(bool $enabled): self
     {
         $this->enabled = $enabled;
+
+        return $this;
+    }
+
+    public function getPassword(): ?string
+    {
+        return $this->password;
+    }
+
+    public function setPassword(?string $password): self
+    {
+        $this->password = $password;
+
+        return $this;
+    }
+
+    public function getAvatar(): ?string
+    {
+        return $this->avatar;
+    }
+
+    public function setAvatar(?string $avatar): self
+    {
+        $this->avatar = $avatar;
 
         return $this;
     }

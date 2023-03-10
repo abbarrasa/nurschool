@@ -20,13 +20,12 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
-    Nurschool\Api\Action\:
-        resource: '../src/Api/Action'
-        tags: [ 'controller.service_arguments' ]
-
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
     Nurschool\Mailer\MailerInterface: '@Nurschool\Mailer\Sendgrid\SendgridMailer'
+
+    Nurschool\Storage\LocalFileManager:
+        arguments: [ '%kernel.project_dir%/public/' ]
 
     SendGrid:
         class: \SendGrid

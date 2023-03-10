@@ -11,10 +11,12 @@
 
 declare(strict_types=1);
 
-namespace Nurschool\Mailer\Sendgrid\Exception;
+namespace Nurschool\Storage;
 
-use LogicException;
-
-class SendgridException extends LogicException
+interface FileManagerInterface
 {
+    public function getPublicUrl(string $path): string;
+
+    public function moveFile(string $source, string $filename, string $directory): void;
+
 }

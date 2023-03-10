@@ -32,10 +32,10 @@ build: ## Rebuilds all the containers
 
 # Commands
 composer-install: ## Installs composer dependencies
-	U_ID=${UID} docker exec --user ${UID} -it ${DOCKER_CONTAINER} php -d xdebug.mode=off /usr/bin/composer install --no-scripts --no-interaction --optimize-autoloader
+	U_ID=${UID} docker exec --user ${UID} -it ${DOCKER_CONTAINER} php -d xdebug.mode=off /usr/bin/composer install --no-scripts --optimize-autoloader
 
 composer-update: ## Updates composer dependencies
-	U_ID=${UID} docker exec --user ${UID} -it ${DOCKER_CONTAINER} php -d xdebug.mode=off /usr/bin/composer update --no-scripts --no-interaction --optimize-autoloader
+	U_ID=${UID} docker exec --user ${UID} -it ${DOCKER_CONTAINER} php -d xdebug.mode=off /usr/bin/composer update --no-scripts --optimize-autoloader
 
 logs: ## Tails the Symfony dev log
 	U_ID=${UID} docker exec -it --user ${UID} ${DOCKER_CONTAINER} tail -f var/log/dev.log
