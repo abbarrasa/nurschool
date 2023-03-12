@@ -14,18 +14,24 @@ declare(strict_types=1);
 namespace Nurschool\Mailer\Sendgrid;
 
 use Nurschool\Entity\User;
-use Nurschool\Mailer\MailerInterface;
+use Nurschool\Mailer\Mailer;
 use Nurschool\Mailer\Sendgrid\Exception\SendgridException;
 use Nurschool\Mailer\Sendgrid\Provider\SendgridProvider;
+use Nurschool\Service\UrlSigner\UrlSigner;
 
-final class SendgridMailer implements MailerInterface
+final class SendgridMailer implements Mailer
 {
     private SendgridProvider $provider;
+    private UrlSigner $urlSigner;
     private array $configuration;
 
-    public function __construct(SendgridProvider $provider, array $configuration = array())
-    {
+    public function __construct(
+        SendgridProvider $provider,
+        UrlSigner $urlSigner,
+        array $configuration = array()
+    ) {
         $this->provider = $provider;
+        $this->urlSigner = $urlSigner;
         $this->configuration = $configuration;
     }
 
@@ -34,26 +40,28 @@ final class SendgridMailer implements MailerInterface
         $email = $user->getEmail();
         $firstname = $user->getFirstname();
         $lastname = $user->getLastname();
-        $templateId = $this->getTemplateIdFor(__FUNCTION__);
-        $senderAddress = $this->getSenderAddressFor(__FUNCTION__);
+        $senderEmail = $this->getSenderAddressFor(__FUNCTION__);
         $senderName = $this->getSenderNameFor(__FUNCTION__);
         $subject = $this->getSubjectFor(__FUNCTION__);
-
-        $url = '';
-
-        $email = $this->provider->createMailForTransactionalTemplate(
+        $templateId = $this->getTemplateIdFor(__FUNCTION__);
+        $signature = $this->urlSigner->signRoute(
+            'activate_user',
+            ['userId' => (string) $user->getId()],
+            (new \DateTime('NOW'))->modify('+10 days')
+        );
+        $mail = $this->provider->createMailForTransactionalTemplate(
             [$email => \sprintf("%s %s", $firstname, $lastname)],
-            [$senderAddress, $senderName],
+            [$senderEmail, $senderName],
             $subject,
             $templateId,
             [
                 'name' => $firstname,
-                'url' => $url,
-                'expiresAt' => ''
+                'url' => $signature->getSignedUrl(),
+                'expiration' => $signature->expiresAt()->getTimestamp()
             ]
         );
 
-        $this->provider->sendMail($email);
+        $this->provider->sendMail($mail);
     }
 
     private function getTemplateIdFor(string $name): string

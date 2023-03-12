@@ -22,14 +22,14 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
-    Nurschool\Mailer\MailerInterface: '@Nurschool\Mailer\Sendgrid\SendgridMailer'
-
-    Nurschool\Storage\LocalFileManager:
-        arguments: [ '%kernel.project_dir%/public/' ]
+    Nurschool\Mailer\Mailer: '@Nurschool\Mailer\Sendgrid\SendgridMailer'
 
     SendGrid:
         class: \SendGrid
         arguments: [ '%nurschool_sendgrid.api_key%' ]
+
+    Nurschool\Storage\LocalFileManager:
+        arguments: [ '%kernel.project_dir%/public/' ]
 
     Nurschool\Mailer\Sendgrid\Provider\SendgridProvider:
         arguments:
@@ -40,5 +40,8 @@ services:
 
     Nurschool\Mailer\Sendgrid\SendgridMailer:
         arguments:
-            - '@Nurschool\Mailer\Sendgrid\Provider\SendgridProvider'
-            - '%nurschool_sendgrid.emails%'
+            $configuration: '%nurschool_sendgrid.emails%'
+
+    Nurschool\Service\UrlSigner\Sha256UrlSigner:
+        arguments:
+            $secret: '%env(string:APP_SECRET)%'

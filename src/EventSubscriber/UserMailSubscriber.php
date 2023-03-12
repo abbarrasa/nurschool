@@ -15,7 +15,7 @@ namespace Nurschool\EventSubscriber;
 
 use ApiPlatform\Symfony\EventListener\EventPriorities;
 use Nurschool\Entity\User;
-use Nurschool\Mailer\MailerInterface;
+use Nurschool\Mailer\Mailer;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ViewEvent;
@@ -23,9 +23,9 @@ use Symfony\Component\HttpKernel\KernelEvents;
 
 final class UserMailSubscriber implements EventSubscriberInterface
 {
-    private MailerInterface $mailer;
+    private Mailer $mailer;
 
-    public function __construct(MailerInterface $mailer)
+    public function __construct(Mailer $mailer)
     {
         $this->mailer = $mailer;
     }

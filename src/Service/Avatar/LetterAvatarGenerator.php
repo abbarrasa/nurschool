@@ -34,7 +34,7 @@ final class LetterAvatarGenerator implements AvatarGeneratorInterface
     public function generateUserAvatar(User $user, array $options = []): Avatar
     {
         // Square shape, size 64px
-        $name = $user->getFirstname() . ' ' . $user->getLastname();
+        $name = \sprintf("%s %s", $user->getFirstname(), $user->getLastname());
         $avatar = new LetterAvatar($name, 'square', 64);
 
         $tmpFilename = \tempnam(\sys_get_temp_dir(), 'avatar_');

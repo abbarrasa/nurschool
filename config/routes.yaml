@@ -1,5 +1,5 @@
 controllers:
     resource:
         path: ../src/Controller/
-        namespace: App\Controller
+        namespace: Nurschool\Controller
     type: attribute

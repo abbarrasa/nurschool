@@ -15,7 +15,7 @@ namespace Nurschool\Mailer;
 
 use Nurschool\Entity\User;
 
-interface MailerInterface
+interface Mailer
 {
     public function sendAccountActivationMail(User $user): void;
 }
