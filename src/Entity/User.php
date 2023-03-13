@@ -15,12 +15,14 @@ namespace Nurschool\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
+use ApiPlatform\OpenApi\Model\Operation;
 use Doctrine\ORM\Mapping as ORM;
-use Nurschool\Entity\Exception\UserInvalidEmail;
 use Nurschool\Repository\UserRepository;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
@@ -29,8 +31,15 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(operations: [
     new Post(
         name: 'register', 
-        uriTemplate: '/users/register'
-    )
+        uriTemplate: '/users/register',
+        denormalizationContext: ['groups' => 'registration'],
+        openapi: new Operation(
+            summary: 'Register an user',
+            description: 'Register an user in Nurschool'            
+        ) 
+    ),
+    new Post(),
+    new Put()
 ])]
 final class User
 {
@@ -40,15 +49,18 @@ final class User
 
     #[ORM\Column(length: 255)]
     #[Assert\NotBlank()]
+    #[Groups(['registration'])]
     private string $firstname;
 
     #[ORM\Column(length: 255)]
     #[Assert\NotBlank()]    
+    #[Groups(['registration'])]
     private string $lastname;
 
     #[ORM\Column(length: 255, unique: true)]
     #[Assert\NotBlank()]    
     #[Assert\Email()]
+    #[Groups(['registration'])]
     private string $email;
 
     #[ORM\Column]
