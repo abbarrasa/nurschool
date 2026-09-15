@@ -1,156 +1,124 @@
 <?php
 
-/*
- * This file is part of the Nurschool project.
- *
- * (c) Nurschool <https://github.com/abbarrasa/nurschool>
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
-
-declare(strict_types=1);
-
 namespace Nurschool\Entity;
 
-use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Post;
-use ApiPlatform\Metadata\Put;
-use ApiPlatform\OpenApi\Model\Operation;
-use Doctrine\ORM\Mapping as ORM;
 use Nurschool\Repository\UserRepository;
-use Ramsey\Uuid\Uuid;
-use Ramsey\Uuid\UuidInterface;
-use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
-use Symfony\Component\Serializer\Annotation\Groups;
-use Symfony\Component\Validator\Constraints as Assert;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
-#[ORM\Table(name: '`user`')]
-#[UniqueEntity('email')]
-#[ApiResource(operations: [
-    new Post(
-        name: 'register', 
-        uriTemplate: '/users/register',
-        denormalizationContext: ['groups' => 'registration'],
-        openapi: new Operation(
-            summary: 'Register an user',
-            description: 'Register an user in Nurschool'            
-        ) 
-    ),
-    new Post(),
-    new Put()
-])]
-final class User
+#[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
-    #[ORM\Column(type: "uuid", unique: true)]
-    private UuidInterface $id;
-
-    #[ORM\Column(length: 255)]
-    #[Assert\NotBlank()]
-    #[Groups(['registration'])]
-    private string $firstname;
-
-    #[ORM\Column(length: 255)]
-    #[Assert\NotBlank()]    
-    #[Groups(['registration'])]
-    private string $lastname;
-
-    #[ORM\Column(length: 255, unique: true)]
-    #[Assert\NotBlank()]    
-    #[Assert\Email()]
-    #[Groups(['registration'])]
-    private string $email;
-
+    #[ORM\GeneratedValue]
     #[ORM\Column]
-    private bool $enabled = false;
+    private ?int $id = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(length: 180)]
+    private ?string $email = null;
+
+    /**
+     * @var string The hashed password
+     */
+    #[ORM\Column]
     private ?string $password = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $avatar = null;
+    /**
+     * @var Collection<int, Role>
+     */
+    #[ORM\ManyToMany(targetEntity: Role::class, inversedBy: 'users')]
+    private Collection $roles;
 
-    public function __construct(?UuidInterface $id = null)
+    public function __construct()
     {
-        $this->id = $id ?? Uuid::uuid4();
+        $this->roles = new ArrayCollection();
     }
 
-    public function getId(): UuidInterface
+    public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getFirstname(): string
-    {
-        return $this->firstname;
-    }
-
-    public function setFirstname(string $firstname): self
-    {
-        $this->firstname = $firstname;
-
-        return $this;
-    }
-
-    public function getLastname(): string
-    {
-        return $this->lastname;
-    }
-
-    public function setLastname(string $lastname): self
-    {
-        $this->lastname = $lastname;
-
-        return $this;
-    }
-
-    public function getEmail(): string
+    public function getEmail(): ?string
     {
         return $this->email;
     }
 
-    public function setEmail(string $email): self
+    public function setEmail(string $email): static
     {
         $this->email = $email;
 
         return $this;
     }
 
-    public function getEnabled(): bool
+    /**
+     * A visual identifier that represents this user.
+     *
+     * @see UserInterface
+     */
+    public function getUserIdentifier(): string
     {
-        return $this->enabled;
+        return (string) $this->email;
     }
 
-    public function setEnabled(bool $enabled): self
-    {
-        $this->enabled = $enabled;
-
-        return $this;
-    }
-
+    /**
+     * @see PasswordAuthenticatedUserInterface
+     */
     public function getPassword(): ?string
     {
         return $this->password;
     }
 
-    public function setPassword(?string $password): self
+    public function setPassword(string $password): static
     {
         $this->password = $password;
 
         return $this;
     }
 
-    public function getAvatar(): ?string
+    /**
+     * @see UserInterface
+     */
+    public function getRoles(): array
     {
-        return $this->avatar;
+        return $this->roles->map(fn(Role $role) => $role->getName())->toArray();
     }
 
-    public function setAvatar(?string $avatar): self
+    public function addRole(Role $role): static
     {
-        $this->avatar = $avatar;
+        if (!$this->roles->contains($role)) {
+            $this->roles->add($role);
+        }
 
         return $this;
     }
+
+    public function removeRole(Role $role): static
+    {
+        $this->roles->removeElement($role);
+
+        return $this;
+    }
+
+    /**
+     * Ensure the session doesn't contain actual password hashes by CRC32C-hashing them, as supported since Symfony 7.3.
+     */
+    public function __serialize(): array
+    {
+        $data = (array) $this;
+        $data["\0".self::class."\0password"] = hash('crc32c', $this->password);
+
+        return $data;
+    }
+
+    #[\Deprecated]
+    public function eraseCredentials(): void
+    {
+        // @deprecated, to be removed when upgrading to Symfony 8
+    }
+
 }
