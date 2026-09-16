@@ -15,7 +15,6 @@ services:
   nurschool-web:
     container_name: nurschool-web
     image: nginx:alpine
-    user: "${HOST_UID}:${HOST_GID}"
     ports:
       - "8080:80"
     volumes:
