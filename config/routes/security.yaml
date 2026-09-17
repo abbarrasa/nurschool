@@ -1,3 +1,8 @@
 _security_logout:
     resource: security.route_loader.logout
     type: service
+
+# Only POST can terminate a session. The firewall handles this route.
+nurschool_logout:
+    path: /logout
+    methods: [POST]

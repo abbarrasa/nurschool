@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+{% import ui_theme as ui %}
+{% block title %}Iniciar sesión · Nurschool{% endblock %}
+{% block javascripts %}<script type="module" src="/assets/login.js"></script>{% endblock %}
+{% block body %}
+<section id="login-app" class="{{ ui.classes('panel') }} login-panel"
+         data-login-url="{{ path('api_login') }}" data-home-url="{{ path('nurschool_home') }}" aria-labelledby="login-title">
+    <div class="login-intro">
+        <h1 id="login-title" class="{{ ui.classes('title') }}">Iniciar sesión</h1>
+        <p class="{{ ui.classes('subtitle') }}">Accede a tu espacio de enfermería escolar.</p>
+    </div>
+    <noscript><p class="{{ ui.classes('error') }}">Activa JavaScript para iniciar sesión.</p></noscript>
+    <form @submit.prevent="submit" v-cloak v-if="!user" :aria-busy="loading">
+        <div class="{{ ui.classes('field') }}">
+            <label class="{{ ui.classes('label') }}" for="email">Email</label>
+            <input class="{{ ui.classes('input') }}" id="email" name="email" type="email" autocomplete="username" maxlength="180" required v-model="email" :disabled="loading" :aria-invalid="Boolean(error)" :aria-describedby="error ? 'login-error' : null">
+        </div>
+        <div class="{{ ui.classes('field') }}">
+            <label class="{{ ui.classes('label') }}" for="password">Contraseña</label>
+            <input class="{{ ui.classes('input') }}" id="password" name="password" type="password" autocomplete="current-password" maxlength="4096" required v-model="password" :disabled="loading" :aria-invalid="Boolean(error)" :aria-describedby="error ? 'login-error' : null">
+        </div>
+        <p id="login-error" v-if="error" role="alert" class="{{ ui.classes('error') }} form-error" v-text="error"></p>
+        <button class="{{ ui.classes('primaryButton') }} submit-action" type="submit" :disabled="loading" v-text="loading ? 'Entrando…' : 'Entrar'"></button>
+    </form>
+    <p v-if="user" v-cloak role="status" class="{{ ui.classes('info') }}">Sesión iniciada. Abriendo tu inicio…</p>
+</section>
+{% endblock %}

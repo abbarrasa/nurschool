@@ -1,0 +1,28 @@
+{# Framework adapter: application templates only use these semantic names. #}
+{% macro stylesheets() %}
+    <link rel="stylesheet" href="/assets/themes/bulma.css">
+{% endmacro %}
+
+{% macro classes(name) -%}
+    {%- set classes = {
+        page: 'section',
+        container: 'container',
+        panel: 'box',
+        title: 'title is-3',
+        subtitle: 'subtitle is-6',
+        sectionTitle: 'title is-5',
+        muted: 'has-text-grey',
+        field: 'field',
+        label: 'label',
+        input: 'input',
+        primaryButton: 'button is-primary is-fullwidth',
+        secondaryButton: 'button is-light',
+        error: 'notification is-danger is-light',
+        info: 'notification is-info is-light',
+        status: 'tag is-success is-light',
+        columns: 'columns is-variable is-5',
+        column: 'column',
+        text: 'content'
+    } -%}
+    {{- classes[name] -}}
+{%- endmacro %}
