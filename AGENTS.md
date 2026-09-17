@@ -16,6 +16,18 @@ Apply this workflow to every request that adds or changes a product feature, unl
 2. Implement the requested behavior with the smallest coherent change. Preserve unrelated code and local work.
 3. Add or update database migrations, security rules, validation, documentation, and configuration whenever the feature requires them.
 
+## Frontend and backend separation
+
+1. When a requested feature requires a user-facing view (frontend), implement it using Twig and Vue.js: Twig provides the page structure and mounts the Vue.js interface, while Vue.js handles interactivity and data loading.
+2. Keep frontend and backend responsibilities separate. Implement the REST API with API Platform, and obtain the view's application data through calls to that API from Vue.js rather than passing it directly from backend controllers into Twig templates.
+3. Keep business logic, validation, authorization, and persistence in the backend, exposing the operations needed by the frontend through API Platform.
+
+## Frontend styling
+
+1. Use Bulma CSS as the current frontend CSS framework for user-facing views.
+2. Keep the CSS framework replaceable: isolate third-party assets and framework-specific styles in a presentation theme, load them through one shared entry point, and centralize framework-specific classes in reusable Twig presentation helpers. Business templates and Vue.js logic must use semantic presentation helpers and application-owned selectors rather than importing or depending directly on Bulma.
+3. Keep application styles separate from vendor assets. Document how to replace the theme without modifying backend behavior or frontend data-loading and authentication logic.
+
 ## Quality gates
 
 For each feature, add meaningful automated coverage for the behavior changed:

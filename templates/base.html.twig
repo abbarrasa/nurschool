@@ -1,0 +1,30 @@
+{% import ui_theme as ui %}
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Nurschool{% endblock %}</title>
+    {{ ui.stylesheets() }}
+    <link rel="stylesheet" href="/assets/app.css">
+    {% block stylesheets %}{% endblock %}
+    {% block javascripts %}{% endblock %}
+</head>
+<body>
+    <header class="site-header">
+        <nav class="{{ ui.classes('container') }} site-navigation" aria-label="Navegación principal">
+            <a class="site-brand" href="{{ path('nurschool_home') }}">Nurschool</a>
+            {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+                <form action="{{ path('nurschool_logout') }}" method="post" data-logout-form>
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                    <button class="{{ ui.classes('secondaryButton') }}" type="submit">Salir</button>
+                </form>
+            {% endif %}
+        </nav>
+    </header>
+    <main class="{{ ui.classes('page') }} site-main">
+        <div class="{{ ui.classes('container') }}">{% block body %}{% endblock %}</div>
+    </main>
+    <footer class="site-footer">Nurschool · Enfermería escolar</footer>
+</body>
+</html>

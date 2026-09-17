@@ -17,6 +17,12 @@ final class Version20260814190123 extends AbstractMigration
         return 'Create User and Role entities with a many-to-many relationship, including unique constraints on email and role name.';
     }
 
+    public function isTransactional(): bool
+    {
+        // MariaDB DDL statements commit implicitly.
+        return false;
+    }
+
     public function up(Schema $schema): void
     {
         // this up() migration is auto-generated, please modify it to your needs
@@ -27,7 +33,7 @@ final class Version20260814190123 extends AbstractMigration
         $this->addSql('ALTER TABLE user_role ADD CONSTRAINT FK_2DE8C6A3D60322AC FOREIGN KEY (role_id) REFERENCES role (id) ON DELETE CASCADE');
 
         //Insert roles
-        $this->addSql("INSERT INTO role(name, translation_id) VALUES('USER_ROLE', 'app.roles.user_role'), VALUES('ADMIN_ROLE', 'app.roles.admin_role'), VALUES('NURSE_ROLE', 'app.roles.nurse_role'), VALUES('SUPER_ADMIN_ROLE', 'app.roles.super_admin_role')");
+        $this->addSql("INSERT INTO role(name, translation_id) VALUES('USER_ROLE', 'app.roles.user_role'), ('ADMIN_ROLE', 'app.roles.admin_role'), ('NURSE_ROLE', 'app.roles.nurse_role'), ('SUPER_ADMIN_ROLE', 'app.roles.super_admin_role')");
     }
 
     public function down(Schema $schema): void
