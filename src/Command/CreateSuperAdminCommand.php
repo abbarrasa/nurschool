@@ -5,7 +5,6 @@ namespace Nurschool\Command;
 use Doctrine\DBAL\Exception as DatabaseException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
-use Nurschool\Entity\Role;
 use Nurschool\Entity\User;
 use Nurschool\Repository\RoleRepository;
 use Nurschool\Repository\UserRepository;
@@ -21,6 +20,8 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 #[AsCommand(name: 'app:user:create-super-admin', description: 'Crea un usuario con el rol ROLE_SUPER_ADMIN de forma interactiva.')]
 final class CreateSuperAdminCommand extends Command
 {
+    private const string ROLE_SUPER_ADMIN_NAME = 'ROLE_SUPER_ADMIN';
+
     public function __construct(
         private readonly UserRepository $users,
         private readonly RoleRepository $roles,
@@ -67,10 +68,11 @@ final class CreateSuperAdminCommand extends Command
             $user->setPassword($this->passwordHasher->hashPassword($user, $password));
             unset($password);
 
-            $role = $this->roles->findOneBy(['name' => 'ROLE_SUPER_ADMIN']);
+            $role = $this->roles->findOneBy(['name' => self::ROLE_SUPER_ADMIN_NAME]);
             if ($role === null) {
-                $role = (new Role())->setName('ROLE_SUPER_ADMIN')->setTranslationId('app.roles.super_admin_role');
-                $this->entityManager->persist($role);
+                $io->error('No existe el rol super admin');
+
+                return Command::FAILURE;
             }
             $user->addRole($role);
             $this->entityManager->persist($user);
@@ -100,7 +102,6 @@ final class CreateSuperAdminCommand extends Command
         return (new Question($prompt))
             ->setHidden(true)
             ->setHiddenFallback(false)
-            ->setTrimmable(false)
             ->setMaxAttempts(3);
     }
 }

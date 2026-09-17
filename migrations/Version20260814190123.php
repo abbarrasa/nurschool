@@ -33,7 +33,7 @@ final class Version20260814190123 extends AbstractMigration
         $this->addSql('ALTER TABLE user_role ADD CONSTRAINT FK_2DE8C6A3D60322AC FOREIGN KEY (role_id) REFERENCES role (id) ON DELETE CASCADE');
 
         //Insert roles
-        $this->addSql("INSERT INTO role(name, translation_id) VALUES('USER_ROLE', 'app.roles.user_role'), ('ADMIN_ROLE', 'app.roles.admin_role'), ('NURSE_ROLE', 'app.roles.nurse_role'), ('SUPER_ADMIN_ROLE', 'app.roles.super_admin_role')");
+        $this->addSql("INSERT INTO role(name, translation_id) VALUES('ROLE_USER', 'app.roles.user'), ('ROLE_ADMIN', 'app.roles.admin'), ('ROLE_NURSE', 'app.roles.nurse'), ('ROLE_SUPER_ADMIN', 'app.roles.super_admin')");
     }
 
     public function down(Schema $schema): void
