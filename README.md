@@ -255,6 +255,7 @@ required to run the application; Node.js is needed only for frontend tests.
 | `make build` | Rebuild the PHP image after Dockerfile changes |
 | `make start` | Create or start services and apply changed Compose configuration |
 | `make stop` | Stop services while preserving containers and database data |
+| `make restart` | Stop and start services |
 | `make show` | Inspect containers and Docker volumes, images, and networks |
 | `make composer-install` | Install locked dependencies as the development user |
 | `make composer-update` | Intentionally update dependencies and the lock file |
@@ -263,8 +264,7 @@ required to run the application; Node.js is needed only for frontend tests.
 
 After changing the Dockerfile, run `make build` followed by `make start`. After
 changing Compose-provided environment variables, run `make start` so Compose can
-recreate affected containers. For a stop/start cycle, run `make stop` and then
-`make start`: the current `make restart` target calls the nonexistent `run` target.
+recreate affected containers.
 
 `make logs` only follows Symfony's log file; for container startup or stderr logs,
 use `docker compose logs nurschool-php nurschool-web nurschool-database`. The current
