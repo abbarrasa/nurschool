@@ -1,6 +1,6 @@
 {% import ui_theme as ui %}
 <!DOCTYPE html>
-<html lang="es" data-theme="light">
+<html lang="{{ app.request ? app.request.locale : app.locale }}" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,12 +12,19 @@
 </head>
 <body>
     <header class="site-header">
-        <nav class="{{ ui.classes('container') }} site-navigation" aria-label="Navegación principal">
+        <nav class="{{ ui.classes('container') }} site-navigation" aria-label="{{ 'nav.main'|trans }}">
             <a class="site-brand" href="{{ path('nurschool_home') }}">Nurschool</a>
+            <div class="language-switcher" aria-label="{{ 'nav.language'|trans }}">
+                {% for locale in enabled_locales %}
+                    <a href="{{ path(app.request ? app.request.attributes.get('_route')|default('nurschool_home') : 'nurschool_home', (app.request ? app.request.attributes.get('_route_params')|default({}) : {})|merge({_locale: locale})) }}"
+                       lang="{{ locale }}" hreflang="{{ locale }}" data-locale="{{ locale }}"
+                       {% if locale == (app.request ? app.request.locale : app.locale) %}aria-current="true"{% endif %}>{{ ('locale.' ~ locale)|trans({}, 'messages', locale) }}</a>
+                {% endfor %}
+            </div>
             {% if is_granted('IS_AUTHENTICATED_FULLY') %}
                 <form action="{{ path('nurschool_logout') }}" method="post" data-logout-form>
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
-                    <button class="{{ ui.classes('secondaryButton') }}" type="submit">Salir</button>
+                    <button class="{{ ui.classes('secondaryButton') }}" type="submit">{{ 'nav.logout'|trans }}</button>
                 </form>
             {% endif %}
         </nav>
@@ -25,6 +32,6 @@
     <main class="{{ ui.classes('page') }} site-main">
         <div class="{{ ui.classes('container') }}">{% block body %}{% endblock %}</div>
     </main>
-    <footer class="site-footer">Nurschool · Enfermería escolar</footer>
+    <footer class="site-footer">Nurschool · {{ 'app.tagline'|trans }}</footer>
 </body>
 </html>

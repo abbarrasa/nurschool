@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHomeView } from '../../public/assets/home-view.js';
 
+const messages = JSON.parse(readFileSync(new URL('../../translations/messages.es.json', import.meta.url)));
+
 async function mount(request, onUnauthenticated = () => {}) {
-    const options = createHomeView('/api/me', request, onUnauthenticated);
+    const options = createHomeView('/api/me', messages, request, onUnauthenticated);
     const state = options.data();
     await options.mounted.call(state);
     return state;

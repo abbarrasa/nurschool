@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createLoginForm } from '../../public/assets/login-form.js';
 
+const messages = JSON.parse(readFileSync(new URL('../../translations/messages.es.json', import.meta.url)));
+
 function form(request) {
-    const options = createLoginForm('/api/login', request);
+    const options = createLoginForm('/api/login', messages, request);
     const state = { ...options.data(), ...options.methods, mounted: options.mounted };
     state.loading = false;
     state.email = ' student@example.com ';
@@ -80,14 +83,14 @@ test('failed session check still enables login', async () => {
 for (const action of ['submit', 'mounted']) {
     test(`${action} navigates to home only after authentication succeeds`, async () => {
         let navigations = 0;
-        const options = createLoginForm('/api/login', async () => ({ ok: true, json: async () => ({ email: 'student@example.com' }) }), () => { navigations++; });
+        const options = createLoginForm('/api/login', messages, async () => ({ ok: true, json: async () => ({ email: 'student@example.com' }) }), () => { navigations++; });
         const state = { ...options.data(), ...options.methods, mounted: options.mounted, loading: false };
         await state[action]();
         assert.equal(navigations, 1);
     });
     test(`${action} does not navigate after failed authentication`, async () => {
         let navigations = 0;
-        const options = createLoginForm('/api/login', async () => ({ ok: false, status: 401 }), () => { navigations++; });
+        const options = createLoginForm('/api/login', messages, async () => ({ ok: false, status: 401 }), () => { navigations++; });
         const state = { ...options.data(), ...options.methods, mounted: options.mounted, loading: false };
         await state[action]();
         assert.equal(navigations, 0);

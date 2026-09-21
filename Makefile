@@ -33,7 +33,7 @@ stop: ## Stops the containers
 	docker compose stop
 
 restart: ## Restarts the containers
-	$(MAKE) stop && $(MAKE) run
+	$(MAKE) stop && $(MAKE) start
 
 build: ## Rebuilds all the containers
 	 $(ENV_VARS) docker compose build

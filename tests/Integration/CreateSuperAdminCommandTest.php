@@ -33,6 +33,22 @@ final class CreateSuperAdminCommandTest extends WebTestCase
         $schema->createSchema($metadata);
     }
 
+    private function seedSuperAdminRole(): void
+    {
+        // Production roles are installed by the initial migration, not by the command.
+        $role = (new Role())->setName('ROLE_SUPER_ADMIN')->setTranslationId('app.roles.super_admin');
+        $this->em->persist($role);
+        $this->em->flush();
+    }
+
+    public function testMissingSuperAdminRoleProducesEnglishErrorWithoutCreatingAccounts(): void
+    {
+        $tester = $this->runCommand(['admin@example.com', 'test-password-123', 'test-password-123']);
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('The super administrator role does not exist.', $tester->getDisplay());
+        $this->assertNoAccountsCreated();
+    }
+
     private function runCommand(array $inputs, bool $interactive = true): CommandTester
     {
         $tester = new CommandTester((new Application(self::$kernel))->find('app:user:create-super-admin'));
@@ -50,6 +66,7 @@ final class CreateSuperAdminCommandTest extends WebTestCase
 
     public function testCreatesHashedUserWithExactRoleAndCanAuthenticate(): void
     {
+        $this->seedSuperAdminRole();
         $password = ' password with spaces ';
         $tester = $this->runCommand([' admin@example.com ', $password, $password]);
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
@@ -61,7 +78,7 @@ final class CreateSuperAdminCommandTest extends WebTestCase
         self::assertNotSame($password, $user->getPassword());
         self::assertTrue(self::getContainer()->get(UserPasswordHasherInterface::class)->isPasswordValid($user, $password));
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM user_role'));
-        self::assertSame('app.roles.super_admin_role', $this->em->getRepository(Role::class)->findOneBy(['name' => 'ROLE_SUPER_ADMIN'])->getTranslationId());
+        self::assertSame('app.roles.super_admin', $this->em->getRepository(Role::class)->findOneBy(['name' => 'ROLE_SUPER_ADMIN'])->getTranslationId());
         $this->browser->jsonRequest('POST', '/api/login', ['email' => 'admin@example.com', 'password' => $password]);
         self::assertResponseStatusCodeSame(200);
         $this->browser->request('GET', '/');
@@ -83,6 +100,7 @@ final class CreateSuperAdminCommandTest extends WebTestCase
 
     public function testLegacyRoleIsNotRenamedOrAssigned(): void
     {
+        $this->seedSuperAdminRole();
         $legacy = (new Role())->setName('SUPER_ADMIN_ROLE')->setTranslationId('legacy.translation');
         $this->em->persist($legacy);
         $this->em->flush();
@@ -100,7 +118,7 @@ final class CreateSuperAdminCommandTest extends WebTestCase
         $this->em->flush();
         $tester = $this->runCommand(['existing@example.com']);
         self::assertSame(Command::FAILURE, $tester->getStatusCode());
-        self::assertStringContainsString('Ya existe un usuario', $tester->getDisplay());
+        self::assertStringContainsString('A user with this email already exists', $tester->getDisplay());
         $this->em->clear();
         $stored = $this->em->getRepository(User::class)->find($user->getId());
         self::assertSame('original-hash', $stored->getPassword());
@@ -110,9 +128,10 @@ final class CreateSuperAdminCommandTest extends WebTestCase
 
     public function testInvalidEmailCanBeCorrected(): void
     {
+        $this->seedSuperAdminRole();
         $tester = $this->runCommand(['invalid', 'admin@example.com', 'test-password-123', 'test-password-123']);
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
-        self::assertStringContainsString('Introduce un email válido', $tester->getDisplay());
+        self::assertStringContainsString('Enter a valid email address', $tester->getDisplay());
     }
 
     public function testInvalidEmailExhaustsRetriesWithoutWrites(): void
@@ -134,9 +153,10 @@ final class CreateSuperAdminCommandTest extends WebTestCase
 
     public function testConfirmationCanBeCorrected(): void
     {
+        $this->seedSuperAdminRole();
         $tester = $this->runCommand(['admin@example.com', 'test-password-123', 'different-secret', 'test-password-123']);
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
-        self::assertStringContainsString('Las contraseñas no coinciden', $tester->getDisplay());
+        self::assertStringContainsString('The passwords do not match', $tester->getDisplay());
         self::assertStringNotContainsString('different-secret', $tester->getDisplay());
     }
 
@@ -164,11 +184,12 @@ final class CreateSuperAdminCommandTest extends WebTestCase
         $this->em->getConnection()->executeStatement('DROP TABLE user');
         $tester = $this->runCommand(['admin@example.com']);
         self::assertSame(Command::FAILURE, $tester->getStatusCode());
-        self::assertStringContainsString('Comprueba la conexión y las migraciones', $tester->getDisplay());
+        self::assertStringContainsString('Check the database connection', $tester->getDisplay());
     }
 
-    public function testConcurrentDuplicateRollsBackNewRoleAndUser(): void
+    public function testConcurrentDuplicatePreservesExistingRoleAndUser(): void
     {
+        $this->seedSuperAdminRole();
         $user = (new User())->setEmail('admin@example.com')->setPassword('original-hash');
         $this->em->persist($user);
         $this->em->flush();
@@ -182,9 +203,9 @@ final class CreateSuperAdminCommandTest extends WebTestCase
         $tester->setInputs(['admin@example.com', 'test-password-123', 'test-password-123']);
         $tester->execute([]);
         self::assertSame(Command::FAILURE, $tester->getStatusCode());
-        self::assertStringContainsString('durante la operación', $tester->getDisplay());
+        self::assertStringContainsString('created concurrently', $tester->getDisplay());
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM user'));
-        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM role'));
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM role'));
         self::assertSame('original-hash', $this->em->getConnection()->fetchOne('SELECT password FROM user'));
     }
 }

@@ -1,3 +1,11 @@
+# Agent role
+
+Act as an expert Symfony developer. Your objective is to produce clean, scalable, maintainable, and well-documented code that follows Clean Code practices and SOLID principles.
+
+Follow Symfony conventions and best practices, keep responsibilities clearly separated, and favor explicit dependencies and cohesive, testable components. Keep abstractions proportional to the problem and avoid unnecessary complexity.
+
+Write all documentation, including code comments and PHPDoc, in clear, precise, grammatically correct technical English. Explain intent, design decisions, and non-obvious behavior rather than restating the code.
+
 # Workflow for feature implementation
 
 Apply this workflow to every request that adds or changes a product feature, unless the user explicitly overrides a step.
@@ -27,6 +35,12 @@ Apply this workflow to every request that adds or changes a product feature, unl
 1. Use Bulma CSS as the current frontend CSS framework for user-facing views.
 2. Keep the CSS framework replaceable: isolate third-party assets and framework-specific styles in a presentation theme, load them through one shared entry point, and centralize framework-specific classes in reusable Twig presentation helpers. Business templates and Vue.js logic must use semantic presentation helpers and application-owned selectors rather than importing or depending directly on Bulma.
 3. Keep application styles separate from vendor assets. Document how to replace the theme without modifying backend behavior or frontend data-loading and authentication logic.
+
+## User interface translations and server-side literals
+
+1. Whenever a feature adds or changes user-visible text in Twig templates or Vue.js interfaces, add or update the corresponding translations for every locale defined in `framework.enabled_locales` in Symfony's `translation.yaml` configuration file. Read this configuration as the source of truth for supported locales rather than hardcoding a separate list.
+2. Use the application's translation mechanism for user-visible text and maintain the relevant translation catalogs. This includes labels, buttons, placeholders, help text, and messages displayed in the browser, including validation and error messages originating from the backend.
+3. Always write server-side string literals that are not exposed to the browser in English. This includes internal exception messages, log messages, and diagnostic text. If an error must be shown to the user, provide a translated user-facing message separately from the internal English message.
 
 ## Quality gates
 

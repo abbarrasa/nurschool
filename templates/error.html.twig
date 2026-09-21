@@ -1,0 +1,10 @@
+{% extends 'base.html.twig' %}
+{% import ui_theme as ui %}
+{% block title %}{{ 'error.title'|trans }} · Nurschool{% endblock %}
+{% block body %}
+<section class="{{ ui.classes('panel') }}" aria-labelledby="error-title">
+    <h1 id="error-title" class="{{ ui.classes('title') }}">{{ 'error.title'|trans }} ({{ status }})</h1>
+    <p role="alert">{{ message }}</p>
+    <a href="{{ path('nurschool_home') }}">{{ 'error.back'|trans }}</a>
+</section>
+{% endblock %}
