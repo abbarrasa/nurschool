@@ -1,10 +1,277 @@
-# nurschool-monolithic
-
+# Nurschool
 Assistant to the nursing service for schools written in PHP.
 
 Nurschool is a nursing service assistant for schools. It provides tools for the management of medical files of students and communication between nurses and students' tutors. It also provides tools such as forums and blogs for the diffusion of the nursing function at school in order to generate a community around it.
 
-Nurschool is a PHP project  based on a Symfony 6 and API Platform implementation.
+Nurschool is a PHP project based on a Symfony 7 and API Platform implementation.
+
+## Project motivation
+
+Nurschool was born out of the need to support school nurses in monitoring and
+assessing students who require nursing care and ongoing health support at school.
+The project aims to help these professionals follow each student's needs over time
+and support continuity of care within the school community.
+
+It also reflects my personal motivation as a Software Engineer to integrate
+artificial intelligence throughout the entire software development lifecycle.
+From requirements analysis and architecture to implementation, testing,
+documentation, deployment, and maintenance, Nurschool provides a practical setting
+for exploring how AI can support software engineering while preserving technical
+rigor, code quality, and professional judgment.
+
+
+## Local installation with Docker
+
+This guide starts with Docker, the Docker Compose v2 plugin, and GNU Make already
+available. Installing those packages is outside its scope because the procedure
+depends on the operating system. Run the commands from the repository root in a
+POSIX-compatible terminal. On Windows, use a configured WSL environment with
+Docker integration; the Makefile's native Windows fallback does not provide the
+same UID/GID handling as Linux or macOS.
+
+### Docker access and system users
+
+Start the Docker daemon or Docker Desktop using the mechanism provided by your
+installation. Verify that your regular development account can access the intended
+local Docker context:
+
+```sh
+docker context show
+docker info
+docker compose version
+make show-user-ids
+```
+
+For a conventional Linux Docker Engine installation running as root, an
+administrator can grant the development account access through the `docker`
+group. Run the following from that account, not from a root login shell:
+
+```sh
+sudo groupadd --force docker
+sudo usermod -aG docker "$(id -un)"
+```
+
+Sign out and back in, then check `id -nG` and `docker info` without `sudo`.
+Membership in this group grants root-equivalent control through Docker; grant it
+only to trusted development accounts. Docker Desktop and rootless Docker have
+different access arrangements and do not require this group recipe. See the
+[Docker post-installation documentation](https://docs.docker.com/engine/install/linux-postinstall/).
+
+The application does not require creating host accounts named `www-data`, `nginx`,
+or `mysql`. These are identities inside the images, separate from the developer's
+host account and from database login accounts:
+
+| Identity | Responsibility | Required filesystem access |
+| --- | --- | --- |
+| Host development account | Edits the checkout and runs Make targets | Owns the checkout and generated development files |
+| PHP CLI user | Runs Composer and console commands through the Makefile | Writes dependencies and Symfony runtime files |
+| PHP-FPM worker (`www-data` in the current PHP image) | Handles web requests | Reads application files and writes `var/` |
+| Nginx worker (`nginx` in the current web image) | Serves static assets and forwards PHP requests | Traverses the project mount and reads `public/` |
+| MariaDB service user | Runs the database server | Uses the Docker-managed database volume |
+
+On Linux and macOS, the Makefile obtains the caller's numeric UID/GID and passes
+`--user UID:GID` to its `docker exec` commands. Run `make` as your regular account,
+not with `sudo`, so Composer does not create root-owned files in the checkout.
+Although Make also exports `HOST_UID` and `HOST_GID`, the current Compose file and
+Dockerfile do not consume them to change PHP-FPM or Nginx worker identities. Access
+to the Docker daemon and access to bind-mounted project files are separate concerns.
+
+### Local environment configuration
+
+Create `.env` from `env.dist` only if it does not already exist:
+
+```sh
+test -f .env || cp env.dist .env
+chmod 600 .env
+```
+
+Edit `.env` and provide the following values. Replace every placeholder with a
+local value; use separate database user and root passwords. Long random hexadecimal
+values are convenient for secrets and avoid URL-encoding issues in database URLs.
+
+```dotenv
+APP_ENV=dev
+APP_SECRET=<random-application-secret>
+APP_SHARE_DIR=var/share
+DEFAULT_URI=http://localhost:8080
+DATABASE_NAME=nurschool
+DATABASE_USER=nurschool
+DATABASE_PASSWORD=<local-application-database-password>
+DATABASE_ROOT_PASSWORD=<local-database-root-password>
+DATABASE_URL="mysql://${DATABASE_USER}:${DATABASE_PASSWORD}@nurschool-database:3306/${DATABASE_NAME}?serverVersion=mariadb-11.4.0&charset=utf8mb4"
+```
+
+Keep the other entries supplied by `env.dist`. The current browser login uses
+sessions, so generating JWT keys is not required for this login flow. If a
+password contains reserved URL characters, encode its value in `DATABASE_URL`
+while keeping the actual password in `DATABASE_PASSWORD`.
+
+Use `nurschool-database` as the database hostname: `127.0.0.1` inside the PHP
+container refers to PHP's own container. Compose reads `.env` for database
+initialization and injects `DATABASE_URL` into PHP. Symfony's `.env.local` does not
+supply Compose interpolation values and cannot override an already injected
+`DATABASE_URL`. Check for conflicting exported shell variables if the effective
+configuration differs from `.env`.
+
+The checkout is bind-mounted at `/var/www/nurschool` in PHP and Nginx. MariaDB uses
+the named volume `nurschool-db-data` (normally prefixed by the Compose project
+name). The current ports are host `8080` for HTTP and host `3306` for MariaDB;
+ensure they are available. The Compose file publishes both on all host interfaces.
+Docker Desktop must also be allowed to share the checkout directory.
+
+### Build, start, and install application dependencies
+
+```sh
+make build
+make start
+make show
+make composer-install
+```
+
+`make build` builds the PHP image; Compose obtains the Nginx and MariaDB images
+when starting the services. `make start` creates the Compose network and database
+volume automatically. No manual Docker network or host database directory is
+required. The container names are `nurschool-php`, `nurschool-web`, and
+`nurschool-db`.
+
+`make composer-install` installs the versions in `composer.lock` inside PHP and
+intentionally skips Composer scripts. The web page is not ready until dependencies,
+permissions, and database initialization are complete. Use `make composer-update`
+only when intentionally updating dependency versions.
+
+### Bind-mount permissions and ACLs
+
+The following ACL commands apply to a local Linux Docker Engine using ordinary
+UID/GID mapping and a filesystem with POSIX ACL support. They require `setfacl`
+and `getfacl` on the host. They are not portable instructions for Docker Desktop,
+rootless Docker, or a daemon configured with user namespace remapping. In those
+setups, first determine the host identities actually used for bind-mount access
+and adapt the permissions and CLI user mapping. Container IDs must not be assumed
+to equal host IDs. See [Docker UID/GID mapping](https://docs.docker.com/engine/security/rootless/uid-gid-mapping/).
+
+Inspect the worker identities instead of assuming that the host's `www-data` or
+`nginx` accounts use the same IDs as the images. Run this block on the host, after
+the containers have started:
+
+```sh
+NURSCHOOL_DEV_UID=$(id -u)
+NURSCHOOL_PHP_UID=$(docker exec nurschool-php id -u www-data)
+NURSCHOOL_NGINX_UID=$(docker exec nurschool-web id -u nginx)
+
+mkdir -p var/cache var/log var/share
+sudo setfacl -R -m "u:${NURSCHOOL_DEV_UID}:rwX,u:${NURSCHOOL_PHP_UID}:rwX" var
+sudo setfacl -dR -m "u:${NURSCHOOL_DEV_UID}:rwX,u:${NURSCHOOL_PHP_UID}:rwX" var
+getfacl -n var var/cache var/log
+```
+
+The first ACL applies to existing files and directories. The default ACL is
+inherited by new runtime files and directories, allowing both CLI and PHP-FPM to
+continue working with them. Capital `X` grants traversal on directories without
+making every regular file executable. Check ACL masks and any `effective:` entries
+in `getfacl` output when diagnosing denied access. This follows Symfony's
+[shared runtime directory permissions guidance](https://symfony.com/doc/7.4/setup/file_permissions.html).
+
+PHP also needs to read the application and environment files, while Nginx needs
+to read public assets. For a restrictive checkout, grant this access explicitly;
+the environment-file rule is needed after the `chmod 600 .env` step above:
+
+```sh
+sudo setfacl -m "u:${NURSCHOOL_PHP_UID}:--x,u:${NURSCHOOL_NGINX_UID}:--x" .
+sudo setfacl -R -m "u:${NURSCHOOL_PHP_UID}:rX" bin config public src templates translations vendor
+sudo setfacl -m "u:${NURSCHOOL_PHP_UID}:r--" composer.json composer.lock symfony.lock
+sudo setfacl -R -m "u:${NURSCHOOL_NGINX_UID}:rX" public
+for NURSCHOOL_ENV_FILE in .env .env.local .env.dev .env.dev.local; do
+    if [ -f "$NURSCHOOL_ENV_FILE" ]; then
+        sudo setfacl -m "u:${NURSCHOOL_PHP_UID}:r--" "$NURSCHOOL_ENV_FILE"
+    fi
+done
+```
+
+Reapply read ACLs if an editor replaces a restricted file or a dependency install
+recreates directories. Runtime write access belongs in `var/`, not across the
+source tree. Do not use recursive `chmod 777` or assign the entire checkout to the
+web worker. If earlier commands created root-owned generated files, inspect their
+ownership and repair only the affected paths before retrying. For example, if
+`ls -ldn var` confirms that an existing local `var/` belongs to root, restore its
+ownership before creating subdirectories and reapplying the runtime ACLs:
+
+```sh
+sudo chown -R "$(id -u):$(id -g)" var
+```
+
+This example assumes the ordinary Linux UID/GID mapping described above. Do not
+change the ownership of MariaDB's managed volume to your development account.
+
+The mounts use the shared SELinux label option `:z`. On SELinux-enabled hosts,
+check mount labels as well as Unix permissions and ACLs if access remains denied.
+Do not disable SELinux to resolve a project-directory permission problem.
+
+To verify runtime access, use disposable files, then remove them:
+
+```sh
+docker exec --user "${NURSCHOOL_DEV_UID}:$(id -g)" nurschool-php sh -c 'touch var/.cli-permission-check && rm var/.cli-permission-check'
+docker exec --user www-data nurschool-php sh -c 'test -r .env && touch var/.web-permission-check && rm var/.web-permission-check'
+docker exec --user nginx nurschool-web sh -c 'test -r public/assets/app.css'
+```
+
+### Initialize Symfony and the database
+
+Wait until MariaDB is ready to accept connections; inspect its startup output with
+`docker compose logs nurschool-database` if necessary. Compose startup ordering does
+not guarantee database readiness. Open the PHP shell using the Makefile:
+
+```sh
+make bash
+```
+
+Inside that shell, initialize the application as the mapped CLI user:
+
+```sh
+php -d xdebug.mode=off bin/console cache:clear
+php -d xdebug.mode=off bin/console assets:install public
+php -d xdebug.mode=off bin/console doctrine:migrations:migrate --no-interaction
+php -d xdebug.mode=off bin/console doctrine:schema:validate
+php -d xdebug.mode=off bin/console app:user:create-super-admin
+exit
+```
+
+On first startup with an empty volume, MariaDB creates the database and application
+database account from `.env`. The initial migration creates the tables and four
+application roles; the interactive command then creates the first login account.
+The database account and the Nurschool superadministrator are different accounts.
+Changing initialization variables later does not update users or passwords in an
+existing database volume. Preserve that volume and update existing database
+accounts deliberately rather than deleting data to repeat initialization.
+
+Open [Nurschool locally](http://localhost:8080/login) and sign in with the account
+created above. No host PHP, Composer, Node.js installation, or frontend build is
+required to run the application; Node.js is needed only for frontend tests.
+
+### Daily Makefile commands
+
+| Command | Purpose |
+| --- | --- |
+| `make show-user-ids` | Display the host platform and UID/GID used by Make |
+| `make build` | Rebuild the PHP image after Dockerfile changes |
+| `make start` | Create or start services and apply changed Compose configuration |
+| `make stop` | Stop services while preserving containers and database data |
+| `make show` | Inspect containers and Docker volumes, images, and networks |
+| `make composer-install` | Install locked dependencies as the development user |
+| `make composer-update` | Intentionally update dependencies and the lock file |
+| `make bash` | Open an interactive PHP shell as the development user |
+| `make logs` | Follow `var/log/dev.log` when that file exists |
+
+After changing the Dockerfile, run `make build` followed by `make start`. After
+changing Compose-provided environment variables, run `make start` so Compose can
+recreate affected containers. For a stop/start cycle, run `make stop` and then
+`make start`: the current `make restart` target calls the nonexistent `run` target.
+
+`make logs` only follows Symfony's log file; for container startup or stderr logs,
+use `docker compose logs nurschool-php nurschool-web nurschool-database`. The current
+`make test` points to an absent `bin/phpunit`; use the verification commands below.
+The optional `code-style-install` target also contains `makedir` instead of
+`mkdir` and is not part of this installation procedure. These existing Makefile
+limitations are documented here without changing its targets.
 
 
 ## Login
@@ -31,22 +298,6 @@ Future operations that change data and use this session must include CSRF protec
 Vue 3.5.30 is vendored in `public/assets/vue.esm-browser.prod.js` from
 `https://cdn.jsdelivr.net/npm/vue@3.5.30/dist/vue.esm-browser.prod.js`; its MIT license
 is alongside it in `vue-LICENSE.txt`. No CDN request or frontend build is needed at runtime.
-
-### Local MariaDB setup
-
-When using Docker Compose, set the host in `.env`'s `DATABASE_URL` to
-`nurschool-database` instead of `127.0.0.1` (which points at the PHP container).
-After changing it, recreate PHP and apply the initial migration:
-
-```sh
-docker compose up -d --no-deps nurschool-php
-docker exec nurschool-php php bin/console doctrine:database:create --if-not-exists
-docker exec nurschool-php php bin/console doctrine:migrations:migrate --no-interaction
-docker exec nurschool-php php bin/console doctrine:schema:validate
-```
-
-The initial migration creates the user/role tables and four roles; it does not
-create login accounts.
 
 ### Verification
 
