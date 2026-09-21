@@ -1,33 +1,36 @@
 {% extends 'base.html.twig' %}
 {% import ui_theme as ui %}
-{% block title %}Inicio · Nurschool{% endblock %}
+{% block title %}{{ 'home.title'|trans }} · Nurschool{% endblock %}
 {% block javascripts %}<script type="module" src="/assets/home.js"></script>{% endblock %}
 {% block body %}
-<section id="home-app" data-profile-url="/api/me" data-login-url="{{ path('nurschool_login') }}" aria-labelledby="home-title">
+<section id="home-app" data-messages="{{ {
+             'home.error.load': 'home.error.load'|trans,
+             'home.error.network': 'home.error.network'|trans
+         }|json_encode|e('html_attr') }}" data-profile-url="/api/me" data-login-url="{{ path('nurschool_login') }}" aria-labelledby="home-title">
     <div class="home-intro">
-        <p class="home-eyebrow">TU ESPACIO DE ENFERMERÍA ESCOLAR</p>
-        <h1 id="home-title" class="{{ ui.classes('title') }}">Bienvenido a Nurschool</h1>
-        <p class="{{ ui.classes('subtitle') }}">Un lugar para acompañar el cuidado y la salud en la escuela.</p>
+        <p class="home-eyebrow">{{ 'home.eyebrow'|trans }}</p>
+        <h1 id="home-title" class="{{ ui.classes('title') }}">{{ 'home.welcome'|trans }}</h1>
+        <p class="{{ ui.classes('subtitle') }}">{{ 'home.subtitle'|trans }}</p>
     </div>
     <div class="{{ ui.classes('columns') }}">
         <div class="{{ ui.classes('column') }}">
             <section class="{{ ui.classes('panel') }} home-card" aria-labelledby="account-title">
-                <h2 id="account-title" class="{{ ui.classes('sectionTitle') }}">Tu cuenta</h2>
-                <noscript>Activa JavaScript para consultar tu cuenta. Puedes salir con el botón superior.</noscript>
-                <p v-if="loading" v-cloak role="status">Cargando tu cuenta…</p>
+                <h2 id="account-title" class="{{ ui.classes('sectionTitle') }}">{{ 'home.account'|trans }}</h2>
+                <noscript>{{ 'home.javascript'|trans }}</noscript>
+                <p v-if="loading" v-cloak role="status">{{ 'home.loading'|trans }}</p>
                 <p v-if="error" v-cloak role="alert" class="{{ ui.classes('error') }}" v-text="error"></p>
                 <div v-if="user" v-cloak>
-                    <p class="{{ ui.classes('muted') }}">Has iniciado sesión como</p>
+                    <p class="{{ ui.classes('muted') }}">{{ 'home.signed_in_as'|trans }}</p>
                     <p class="account-email" v-text="user.email"></p>
-                    <span class="{{ ui.classes('status') }} session-status">Sesión activa</span>
+                    <span class="{{ ui.classes('status') }} session-status">{{ 'home.active'|trans }}</span>
                 </div>
             </section>
         </div>
         <div class="{{ ui.classes('column') }}">
             <section class="{{ ui.classes('panel') }} home-card" aria-labelledby="welcome-title">
-                <h2 id="welcome-title" class="{{ ui.classes('sectionTitle') }}">Cuidamos de la comunidad escolar</h2>
-                <p>Este es tu punto de partida en Nurschool.</p>
-                <p class="{{ ui.classes('muted') }}">Cuando termines, utiliza «Salir» para cerrar tu sesión, especialmente si compartes este dispositivo.</p>
+                <h2 id="welcome-title" class="{{ ui.classes('sectionTitle') }}">{{ 'home.community'|trans }}</h2>
+                <p>{{ 'home.start'|trans }}</p>
+                <p class="{{ ui.classes('muted') }}">{{ 'home.sign_out_help'|trans }}</p>
             </section>
         </div>
     </div>

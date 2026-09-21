@@ -1,6 +1,6 @@
-export function createLoginForm(loginUrl, request = fetch, onAuthenticated = () => {}) {
+export function createLoginForm(loginUrl, messages, request = fetch, onAuthenticated = () => {}) {
     return {
-    data: () => ({ email: '', password: '', error: '', loading: true, user: null }),
+    data: () => ({ messages, email: '', password: '', error: '', loading: true, user: null }),
     async mounted() {
         try {
             const response = await request('/api/me', { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' });
@@ -27,16 +27,16 @@ export function createLoginForm(loginUrl, request = fetch, onAuthenticated = () 
                     this.password = '';
                     onAuthenticated();
                 } else if (response.status === 401) {
-                    this.error = 'Email o contraseña incorrectos.';
+                    this.error = messages['login.error.credentials'];
                 } else if (response.status === 400 || response.status === 422) {
-                    this.error = 'Introduce un email válido y una contraseña.';
+                    this.error = messages['login.error.validation'];
                 } else if (response.status === 429) {
-                    this.error = 'Demasiados intentos. Espera un momento y vuelve a intentarlo.';
+                    this.error = messages['login.error.throttled'];
                 } else {
-                    this.error = 'No se ha podido iniciar sesión. Inténtalo de nuevo más tarde.';
+                    this.error = messages['login.error.server'];
                 }
             } catch {
-                this.error = 'No se ha podido conectar con el servidor. Inténtalo de nuevo.';
+                this.error = messages['login.error.network'];
             } finally {
                 this.loading = false;
             }

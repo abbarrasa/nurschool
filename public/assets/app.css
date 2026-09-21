@@ -20,3 +20,7 @@ body { min-height: 100vh; background: #f3f6f8; color: #253d45; }
 @media (max-width: 480px) {
     .login-panel { margin: 1rem auto; padding: 1.5rem; }
 }
+
+.language-switcher { display: flex; gap: .75rem; }
+.language-switcher a { color: #176b64; }
+.language-switcher [aria-current="true"] { font-weight: 700; text-decoration: underline; }

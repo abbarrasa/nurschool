@@ -12,7 +12,7 @@ final class LoginAuthenticatorTest extends TestCase
 {
     public function testSupportsOnlyPostLoginRoute(): void
     {
-        $authenticator = new LoginAuthenticator();
+        $authenticator = new LoginAuthenticator($this->createStub(\Symfony\Contracts\Translation\TranslatorInterface::class));
         $request = Request::create('/api/login', 'POST');
         self::assertFalse($authenticator->supports($request));
         $request->attributes->set('_route', 'api_login');
@@ -25,7 +25,7 @@ final class LoginAuthenticatorTest extends TestCase
     {
         $request = Request::create('/api/login', 'POST', server: ['CONTENT_TYPE' => 'application/json'],
             content: json_encode(['email' => 'user@example.com', 'password' => ' password with spaces ']));
-        $passport = (new LoginAuthenticator())->authenticate($request);
+        $passport = (new LoginAuthenticator($this->createStub(\Symfony\Contracts\Translation\TranslatorInterface::class)))->authenticate($request);
         self::assertSame('user@example.com', $passport->getBadge(UserBadge::class)->getUserIdentifier());
         self::assertSame(' password with spaces ', $passport->getBadge(PasswordCredentials::class)->getPassword());
     }

@@ -97,3 +97,60 @@ Vue authentication/data-loading logic and backend do not need to change. A
 functional test renders the login and home with an alternative adapter to verify
 this contract. Framework replacements still need visual review for spacing and
 responsive behavior.
+
+
+## Internationalization
+
+Symfony Translation is configured in `config/packages/translation.yaml`:
+`framework.enabled_locales` is `['es', 'en']` and `framework.default_locale` is
+`es`. Spanish is also the translation fallback. This configuration is the source
+of truth for the language selector and locale validation.
+
+Use the language links in the shared navigation to switch languages. A valid
+`?_locale=es` or `?_locale=en` selection takes precedence and is stored for one
+year in an HttpOnly, SameSite=Lax cookie (Secure on HTTPS). Unsupported or malformed
+selections are ignored. For pages, the saved preference takes precedence over
+`Accept-Language`; without either, the default is Spanish. Regional browser
+languages such as `en-GB` are matched to the supported language. The preference
+survives login and logout without changing authentication or session data.
+
+Vue sends the page language in `Accept-Language` on API requests. For API requests,
+this header takes precedence over the preference cookie, keeping existing tabs
+consistent when another tab changes the selected language. An explicit valid
+`_locale` query parameter still has the highest priority. Responses include
+`Content-Language` and vary on `Accept-Language` and `Cookie`; preference changes
+and error responses are not cached.
+
+The `translations/messages.es.json` and `translations/messages.en.json` catalogs
+contain all application-owned browser text, including accessible labels, account
+and login states, errors, and the role identifiers seeded by the initial migration.
+Twig uses `trans` and supplies the small set of translated presentation messages
+needed by each Vue component as escaped JSON data attributes. User/application
+data continues to come exclusively from API Platform; no account data is embedded
+in templates. Vue code contains no language-specific messages or locale lists.
+
+Internal exception messages, diagnostics, and console output are written in
+technical English. Browser errors use translated messages without exposing the
+original exception or stack trace, including in debug mode. HTTP status codes and
+protocol headers such as `Allow` and `Retry-After` are preserved. Native browser
+validation messages are provided by the browser and follow its own language
+settings. Developer tooling and third-party API documentation are not translated
+application views.
+
+To add a language, update `framework.enabled_locales`, create a complete
+`messages.<locale>.json` catalog, and add its `locale.<locale>` display name to
+every catalog. For new visible text, add the same key to every enabled catalog
+and use `trans` in Twig or include the translated key in the Vue presentation
+messages. Keep theme classes in the existing Twig presentation adapter. No
+database migration is required for locale selection or translations.
+
+Translation verification includes catalog parity and real Symfony loading,
+locale selection and persistence, authenticated navigation and logout in both
+languages, malformed input, routing/authorization errors, and Vue error states:
+
+```sh
+docker exec -e SHELL_VERBOSITY=-1 nurschool-php php vendor/bin/simple-phpunit tests/Functional/InternationalizationTest.php
+docker exec -e XDEBUG_MODE=coverage -e SHELL_VERBOSITY=-1 nurschool-php php vendor/bin/simple-phpunit --coverage-text --coverage-clover var/coverage.xml
+docker exec nurschool-php php -d xdebug.mode=off vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+node --test tests/frontend/*.test.js
+```

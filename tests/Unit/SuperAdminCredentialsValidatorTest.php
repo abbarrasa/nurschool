@@ -39,7 +39,7 @@ final class SuperAdminCredentialsValidatorTest extends TestCase
             (new SuperAdminCredentialsValidator())->password($password);
             self::fail('Expected invalid password to be rejected.');
         } catch (\InvalidArgumentException $exception) {
-            self::assertSame('La contraseña debe tener al menos 12 caracteres y como máximo 72 bytes.', $exception->getMessage());
+            self::assertSame('The password must contain at least 12 characters and at most 72 bytes.', $exception->getMessage());
         }
     }
 

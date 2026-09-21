@@ -14,7 +14,7 @@ final class LoginTest extends WebTestCase
 
     protected function setUp(): void
     {
-        $this->browser = self::createClient();
+        $this->browser = self::createClient([], ['HTTP_ACCEPT_LANGUAGE' => '']);
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertSame('pdo_sqlite', $em->getConnection()->getParams()['driver']);
         $metadata = $em->getMetadataFactory()->getAllMetadata();

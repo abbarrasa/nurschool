@@ -10,9 +10,14 @@ use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\PasswordCredentials;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class LoginAuthenticator extends AbstractAuthenticator
 {
+    public function __construct(private readonly TranslatorInterface $translator)
+    {
+    }
+
     public function supports(Request $request): bool
     {
         return $request->attributes->get('_route') === 'api_login' && $request->isMethod('POST');
@@ -22,7 +27,7 @@ final class LoginAuthenticator extends AbstractAuthenticator
     {
         // Require JSON so cross-origin HTML forms cannot submit credentials.
         if ($request->getContentTypeFormat() !== 'json') {
-            throw new UnsupportedMediaTypeHttpException('Envía las credenciales como application/json.');
+            throw new UnsupportedMediaTypeHttpException('Credentials must be submitted as application/json.');
         }
         $data = $request->toArray();
         $email = $data['email'] ?? null;
@@ -30,7 +35,7 @@ final class LoginAuthenticator extends AbstractAuthenticator
         if (!is_string($email) || !is_string($password) || $password === ''
             || strlen($password) > 4096 || strlen($email) > 180
             || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new BadRequestHttpException('Introduce un email válido y una contraseña.');
+            throw new BadRequestHttpException('A valid email address and a non-empty password are required.');
         }
         return new Passport(new UserBadge($email), new PasswordCredentials($password));
     }
@@ -42,6 +47,6 @@ final class LoginAuthenticator extends AbstractAuthenticator
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
-        return new JsonResponse(['message' => 'Email o contraseña incorrectos.'], 401, ['Cache-Control' => 'no-store']);
+        return new JsonResponse(['message' => $this->translator->trans('login.error.credentials', locale: $request->getLocale())], 401, ['Cache-Control' => 'no-store']);
     }
 }

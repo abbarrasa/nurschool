@@ -17,7 +17,7 @@ use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
-#[AsCommand(name: 'app:user:create-super-admin', description: 'Crea un usuario con el rol ROLE_SUPER_ADMIN de forma interactiva.')]
+#[AsCommand(name: 'app:user:create-super-admin', description: 'Interactively create a user with the ROLE_SUPER_ADMIN role.')]
 final class CreateSuperAdminCommand extends Command
 {
     private const string ROLE_SUPER_ADMIN_NAME = 'ROLE_SUPER_ADMIN';
@@ -36,7 +36,7 @@ final class CreateSuperAdminCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         if (!$input->isInteractive()) {
-            $io->error('Este comando requiere interacción. Ejecútalo sin --no-interaction en una terminal.');
+            $io->error('This command requires interaction. Run it without --no-interaction in a terminal.');
 
             return Command::INVALID;
         }
@@ -45,19 +45,19 @@ final class CreateSuperAdminCommand extends Command
             $emailQuestion = (new Question('Email'))->setValidator($this->credentials->email(...))->setMaxAttempts(3);
             $email = (string) $io->askQuestion($emailQuestion);
             if ($this->users->findOneBy(['email' => $email]) !== null) {
-                $io->error('Ya existe un usuario con ese email. No se ha modificado su cuenta.');
+                $io->error('A user with this email already exists. The account has not been modified.');
 
                 return Command::FAILURE;
             }
 
-            $passwordQuestion = $this->secretQuestion('Contraseña (mínimo 12 caracteres, máximo 72 bytes)');
+            $passwordQuestion = $this->secretQuestion('Password (at least 12 characters, at most 72 bytes)');
             $passwordQuestion->setValidator($this->credentials->password(...));
             $password = (string) $io->askQuestion($passwordQuestion);
 
-            $confirmation = $this->secretQuestion('Repite la contraseña');
+            $confirmation = $this->secretQuestion('Repeat the password');
             $confirmation->setValidator(static function (#[\SensitiveParameter] mixed $value) use ($password): string {
                 if (!is_string($value) || !hash_equals($password, $value)) {
-                    throw new \InvalidArgumentException('Las contraseñas no coinciden.');
+                    throw new \InvalidArgumentException('The passwords do not match.');
                 }
 
                 return $value;
@@ -70,7 +70,7 @@ final class CreateSuperAdminCommand extends Command
 
             $role = $this->roles->findOneBy(['name' => self::ROLE_SUPER_ADMIN_NAME]);
             if ($role === null) {
-                $io->error('No existe el rol super admin');
+                $io->error('The super administrator role does not exist.');
 
                 return Command::FAILURE;
             }
@@ -79,11 +79,11 @@ final class CreateSuperAdminCommand extends Command
             // Doctrine flushes the role, user and join table in a single transaction.
             $this->entityManager->flush();
         } catch (UniqueConstraintViolationException) {
-            $io->error('El email o el rol se ha creado durante la operación. No se ha creado el usuario; vuelve a intentarlo.');
+            $io->error('The email or role was created concurrently. The user was not created; please try again.');
 
             return Command::FAILURE;
         } catch (DatabaseException) {
-            $io->error('No se ha podido crear el usuario. Comprueba la conexión y las migraciones de la base de datos.');
+            $io->error('Could not create the user. Check the database connection and migrations.');
 
             return Command::FAILURE;
         } catch (\InvalidArgumentException|\RuntimeException $exception) {
@@ -92,7 +92,7 @@ final class CreateSuperAdminCommand extends Command
             return Command::FAILURE;
         }
 
-        $io->success('Usuario creado correctamente con el rol ROLE_SUPER_ADMIN.');
+        $io->success('User created successfully with the ROLE_SUPER_ADMIN role.');
 
         return Command::SUCCESS;
     }
@@ -102,6 +102,9 @@ final class CreateSuperAdminCommand extends Command
         return (new Question($prompt))
             ->setHidden(true)
             ->setHiddenFallback(false)
+            ->setTrimmable(false)
+            // Remove the terminal line ending while preserving password whitespace.
+            ->setNormalizer(static fn (mixed $value): mixed => is_string($value) ? rtrim($value, "\r\n") : $value)
             ->setMaxAttempts(3);
     }
 }

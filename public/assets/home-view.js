@@ -1,6 +1,6 @@
-export function createHomeView(profileUrl, request = fetch, onUnauthenticated = () => {}) {
+export function createHomeView(profileUrl, messages, request = fetch, onUnauthenticated = () => {}) {
     return {
-        data: () => ({ user: null, loading: true, error: '' }),
+        data: () => ({ messages, user: null, loading: true, error: '' }),
         async mounted() {
             try {
                 const response = await request(profileUrl, {
@@ -11,10 +11,10 @@ export function createHomeView(profileUrl, request = fetch, onUnauthenticated = 
                 } else if (response.ok) {
                     this.user = await response.json();
                 } else {
-                    this.error = 'No se ha podido cargar tu cuenta. Recarga la página para volver a intentarlo.';
+                    this.error = messages['home.error.load'];
                 }
             } catch {
-                this.error = 'No se ha podido conectar con el servidor. Comprueba tu conexión y recarga la página.';
+                this.error = messages['home.error.network'];
             } finally {
                 this.loading = false;
             }
