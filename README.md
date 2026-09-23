@@ -259,7 +259,7 @@ required to run the application; Node.js is needed only for frontend tests.
 | `make show` | Inspect containers and Docker volumes, images, and networks |
 | `make composer-install` | Install locked dependencies as the development user |
 | `make composer-update` | Intentionally update dependencies and the lock file |
-| `make bash` | Open an interactive PHP shell as the development user |
+| `make console` | Open an interactive PHP shell as the development user |
 | `make logs` | Follow `var/log/dev.log` when that file exists |
 
 After changing the Dockerfile, run `make build` followed by `make start`. After
