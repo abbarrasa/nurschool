@@ -7,6 +7,12 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    env(SENDGRID_VERIFICATION_TEMPLATE_ES): ''
+    env(SENDGRID_VERIFICATION_TEMPLATE_EN): ''
+    env(MAILER_DSN): 'null://null'
+    env(MAILER_FROM): 'no-reply@nurschool.example'
+    env(REGISTRATION_BASE_URL): 'http://localhost:8080'
+    env(REGISTRATION_TTL): '604800'
 
 services:
     # default configuration for services in *this* file
@@ -18,6 +24,38 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     Nurschool\:
         resource: '../src/'
+        exclude:
+            - '../src/Mail/SendGrid/Message/'
+            - '../src/Mail/SendGrid/Transport/SendGridTransport.php'
+            - '../src/Mail/SendGrid/Transport/Exception/'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    Nurschool\Mail\VerificationEmailSender:
+        alias: Nurschool\Mail\SendGrid\SendGridVerificationEmailSender
+
+    Nurschool\Mail\SendGrid\SendGridTemplateProvider:
+        arguments:
+            $defaultLocale: '%kernel.default_locale%'
+            $templates: [
+                'verification' => [
+                    'es' => '%env(SENDGRID_VERIFICATION_TEMPLATE_ES)%',
+                    'en' => '%env(SENDGRID_VERIFICATION_TEMPLATE_EN)%',
+                ],
+            ]
+
+    sendgrid.http_client: '@http_client'
+
+    Nurschool\Mail\SendGrid\Transport\SendGridTransportFactory:
+        arguments:
+            $client: '@sendgrid.http_client'
+        tags: ['mailer.transport_factory']
+
+when@test:
+    services:
+        test.sendgrid_http_client:
+            class: Symfony\Component\HttpClient\MockHttpClient
+            public: true
+            arguments: [[]]
+        sendgrid.http_client: '@test.sendgrid_http_client'

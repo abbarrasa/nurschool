@@ -33,28 +33,11 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->getEntityManager()->flush();
     }
 
-    //    /**
-    //     * @return User[] Returns an array of User objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('u.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
 
-    //    public function findOneBySomeField($value): ?User
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    public function consumeVerificationToken(string $token): int
+    {
+        return $this->getEntityManager()->createQuery('UPDATE Nurschool\\Entity\\User u SET u.verified = true, u.verificationHash = NULL, u.verificationExpiresAt = NULL WHERE u.verificationHash = :hash AND u.verified = false AND u.verificationExpiresAt > :now')
+            ->setParameter('hash', hash('sha256', $token))
+            ->setParameter('now', new \DateTimeImmutable())->execute();
+    }
 }

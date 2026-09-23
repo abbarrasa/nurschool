@@ -33,6 +33,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\ManyToMany(targetEntity: Role::class, inversedBy: 'users')]
     private Collection $roles;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $verified = false;
+
+    #[ORM\Column(length: 64, nullable: true, unique: true)]
+    private ?string $verificationHash = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $verificationExpiresAt = null;
+
+    public function isVerified(): bool
+    {
+        return $this->verified;
+    }
+
+    public function markVerified(): static
+    {
+        $this->verified = true;
+        $this->verificationHash = null;
+        $this->verificationExpiresAt = null;
+
+        return $this;
+    }
+
+    public function requireVerification(string $hash, \DateTimeImmutable $expiresAt): void
+    {
+        $this->verified = false;
+        $this->verificationHash = $hash;
+        $this->verificationExpiresAt = $expiresAt;
+    }
+
     public function __construct()
     {
         $this->roles = new ArrayCollection();

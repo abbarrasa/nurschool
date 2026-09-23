@@ -46,5 +46,19 @@
     "app.roles.user": "Usuario",
     "app.roles.admin": "Administrador",
     "app.roles.nurse": "Enfermero/a",
-    "app.roles.super_admin": "Superadministrador"
+    "app.roles.super_admin": "Superadministrador",
+    "registration.title": "Crear una cuenta",
+    "registration.submit": "Registrarse",
+    "registration.roles": "Roles (opcionales)",
+    "registration.password_help": "Usa al menos 12 caracteres y como máximo 72 bytes.",
+    "registration.success": "Revisa tu correo para validar la cuenta antes de iniciar sesión.",
+    "registration.verified": "Cuenta validada. Ya puedes iniciar sesión.",
+    "registration.error": "No se ha podido completar la solicitud. Inténtalo de nuevo.",
+    "registration.duplicate": "Este correo electrónico ya está registrado.",
+    "registration.invalid": "Introduce un correo válido, una contraseña de al menos 12 caracteres (máximo 72 bytes) y únicamente los roles permitidos.",
+    "registration.invalid_token": "El enlace de validación no es válido, ha caducado o ya se ha utilizado.",
+    "registration.verify": "Validar cuenta",
+    "registration.verify_help": "Confirma para validar tu dirección de correo electrónico.",
+    "registration.email.subject": "Valida tu cuenta de Nurschool",
+    "registration.email.body": "Abre este enlace para validar tu cuenta: %url%\nEl enlace tiene una validez prolongada y solo puede utilizarse una vez. Si no te has registrado, ignora este correo."
 }

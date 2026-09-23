@@ -46,5 +46,19 @@
     "app.roles.user": "User",
     "app.roles.admin": "Administrator",
     "app.roles.nurse": "Nurse",
-    "app.roles.super_admin": "Super administrator"
+    "app.roles.super_admin": "Super administrator",
+    "registration.title": "Create an account",
+    "registration.submit": "Register",
+    "registration.roles": "Roles (optional)",
+    "registration.password_help": "Use at least 12 characters and at most 72 bytes.",
+    "registration.success": "Check your email to verify your account before signing in.",
+    "registration.verified": "Account verified. You can now sign in.",
+    "registration.error": "The request failed. Please try again.",
+    "registration.duplicate": "This email is already registered.",
+    "registration.invalid": "Enter a valid email, a password of 12 or more characters (maximum 72 bytes), and only the permitted roles.",
+    "registration.invalid_token": "The verification link is invalid, expired or already used.",
+    "registration.verify": "Verify account",
+    "registration.verify_help": "Confirm to verify your email address.",
+    "registration.email.subject": "Verify your Nurschool account",
+    "registration.email.body": "Open this link to verify your account: %url%\nThe link is valid for an extended period, but can only be used once. If you did not register, ignore this email."
 }

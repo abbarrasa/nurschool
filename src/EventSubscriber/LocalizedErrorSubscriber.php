@@ -29,6 +29,12 @@ final readonly class LocalizedErrorSubscriber implements EventSubscriberInterfac
         if ($status === 400 && $request->attributes->get('_route') === 'api_login') {
             $key = 'login.error.validation';
         }
+        if ($request->attributes->get('_route') === 'api_registration' && in_array($status, [409, 422], true)) {
+            $key = $status === 409 ? 'registration.duplicate' : 'registration.invalid';
+        }
+        if ($request->attributes->get('_route') === 'api_verification' && $status === 422) {
+            $key = 'registration.invalid_token';
+        }
         $message = $this->translator->trans($key, locale: $request->getLocale());
         if (str_starts_with($request->getPathInfo(), '/api/')) {
             $event->setResponse(new JsonResponse(['message' => $message], $status, $headers));

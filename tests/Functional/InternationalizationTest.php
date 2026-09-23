@@ -86,7 +86,7 @@ final class InternationalizationTest extends WebTestCase
         $schema = new SchemaTool($em);
         $schema->dropSchema($metadata);
         $schema->createSchema($metadata);
-        $user = (new User())->setEmail('locale@example.com')->setPassword(password_hash('correct-password', PASSWORD_BCRYPT, ['cost' => 4]));
+        $user = (new User())->markVerified()->setEmail('locale@example.com')->setPassword(password_hash('correct-password', PASSWORD_BCRYPT, ['cost' => 4]));
         $em->persist($user);
         $em->flush();
         $browser->request('GET', '/login?_locale='.$locale);

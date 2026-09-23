@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+{% import ui_theme as ui %}
+{% block title %}{{ 'registration.title'|trans }} · Nurschool{% endblock %}
+{% block javascripts %}<script type="module" src="/assets/registration.js"></script>{% endblock %}
+{% block body %}
+<section id="registration-app" class="{{ ui.classes('panel') }} login-panel"
+    data-messages="{{ {
+        'registration.success': 'registration.success'|trans,
+        'registration.verified': 'registration.verified'|trans,
+        'registration.error': 'registration.error'|trans
+    }|json_encode|e('html_attr') }}">
+    <h1 class="{{ ui.classes('title') }}">{{ 'registration.title'|trans }}</h1>
+    <noscript>{{ 'login.javascript'|trans }}</noscript>
+    <form @submit.prevent="submit" v-cloak v-if="!success" :aria-busy="loading">
+        <template v-if="!verifying">
+            <div class="{{ ui.classes('field') }}">
+                <label class="{{ ui.classes('label') }}" for="email">{{ 'login.email'|trans }}</label>
+                <input class="{{ ui.classes('input') }}" id="email" type="email" autocomplete="email" maxlength="180" required v-model="email" :disabled="loading">
+            </div>
+            <div class="{{ ui.classes('field') }}">
+                <label class="{{ ui.classes('label') }}" for="password">{{ 'login.password'|trans }}</label>
+                <input class="{{ ui.classes('input') }}" id="password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required v-model="password" :disabled="loading" aria-describedby="password-help">
+                <p id="password-help">{{ 'registration.password_help'|trans }}</p>
+            </div>
+            <div class="{{ ui.classes('field') }}">
+                <label class="{{ ui.classes('label') }}" for="roles">{{ 'registration.roles'|trans }}</label>
+                <select class="{{ ui.classes('multiSelect') }}" id="roles" multiple size="2" v-model="roles" :disabled="loading">
+                    <option value="ROLE_NURSE">{{ 'app.roles.nurse'|trans }}</option>
+                    <option value="ROLE_ADMIN">{{ 'app.roles.admin'|trans }}</option>
+                </select>
+            </div>
+        </template>
+        <p v-if="verifying">{{ 'registration.verify_help'|trans }}</p>
+        <p v-if="error" role="alert" class="{{ ui.classes('error') }}" v-text="error"></p>
+        <button class="{{ ui.classes('primaryButton') }}" type="submit" :disabled="loading">
+            <span v-if="verifying">{{ 'registration.verify'|trans }}</span><span v-else>{{ 'registration.submit'|trans }}</span>
+        </button>
+    </form>
+    <p v-if="success" v-cloak role="status" class="{{ ui.classes('info') }}" v-text="success"></p>
+    <a href="{{ path('nurschool_login') }}">{{ 'login.title'|trans }}</a>
+</section>
+{% endblock %}
