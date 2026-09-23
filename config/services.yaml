@@ -35,15 +35,13 @@ services:
     Nurschool\Mail\VerificationEmailSender:
         alias: Nurschool\Mail\SendGrid\SendGridVerificationEmailSender
 
-    Nurschool\Mail\SendGrid\SendGridTemplateProvider:
+    Nurschool\Mail\SendGrid\Template\SendGridTemplateProvider:
         arguments:
             $defaultLocale: '%kernel.default_locale%'
-            $templates: [
-                'verification' => [
-                    'es' => '%env(SENDGRID_VERIFICATION_TEMPLATE_ES)%',
-                    'en' => '%env(SENDGRID_VERIFICATION_TEMPLATE_EN)%',
-                ],
-            ]
+            $templates:
+                verification:
+                    es: '%env(SENDGRID_VERIFICATION_TEMPLATE_ES)%'
+                    en: '%env(SENDGRID_VERIFICATION_TEMPLATE_EN)%'
 
     sendgrid.http_client: '@http_client'
 

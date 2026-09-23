@@ -13,7 +13,7 @@ final class SendGridVerificationEmailSenderTest extends TestCase
     /** @dataProvider locales */
     public function testQueuesLocalizedVerification(string $locale, string $expectedId): void
     {
-        $templates = new SendGridTemplateProvider(['es' => 'd-'.str_repeat('a', 32), 'en' => 'd-'.str_repeat('b', 32)], 'es');
+        $templates = new SendGridTemplateProvider(['verification' => ['es' => 'd-'.str_repeat('a', 32), 'en' => 'd-'.str_repeat('b', 32)]], 'es');
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::once())->method('send')->willReturnCallback(function (DynamicTemplateEmail $message) use ($locale, $expectedId): void {
             self::assertSame($expectedId, $message->getTemplateId());

@@ -66,7 +66,7 @@ final class SendGridTransportTest extends TestCase
     {
         $client = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
             $payload = json_decode($options['body'], true);
-            self::assertSame(['email' => 'override@example.com'], $payload['from']);
+            self::assertSame(['email' => 'school@example.com'], $payload['from']);
             self::assertSame([['email' => 'sink@example.com']], $payload['personalizations'][0]['to']);
             self::assertArrayNotHasKey('cc', $payload['personalizations'][0]);
             self::assertArrayNotHasKey('bcc', $payload['personalizations'][0]);
@@ -75,6 +75,61 @@ final class SendGridTransportTest extends TestCase
         });
         (new SendGridTransport($client, 'key'))->send($this->email([])->cc('cc@example.com')->bcc('bcc@example.com'),
             new Envelope(new Address('override@example.com'), [new Address('sink@example.com')]));
+    }
+
+    public function testEnvelopeSelectingOriginalCcAndBccKeepsRecipientsPrivate(): void
+    {
+        $client = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
+            $payload = json_decode($options['body'], true);
+            self::assertSame([
+                ['to' => [['email' => 'cc@example.com']], 'dynamic_template_data' => ['name' => 'Ana']],
+                ['to' => [['email' => 'bcc@example.com']], 'dynamic_template_data' => ['name' => 'Ana']],
+            ], $payload['personalizations']);
+            self::assertStringNotContainsString('ana@example.com', $options['body']);
+            return new MockResponse('', ['http_code' => 202]);
+        });
+        (new SendGridTransport($client, 'key'))->send($this->email()->cc('cc@example.com')->bcc('bcc@example.com'),
+            new Envelope(new Address('school@example.com'), [new Address('cc@example.com'), new Address('bcc@example.com')]));
+    }
+
+    public function testBccOnlyMessagesNeverExposeOtherRecipients(): void
+    {
+        $client = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
+            $personalizations = json_decode($options['body'], true)['personalizations'];
+            self::assertCount(2, $personalizations);
+            self::assertSame([['email' => 'first@example.com']], $personalizations[0]['to']);
+            self::assertSame([['email' => 'second@example.com']], $personalizations[1]['to']);
+            foreach ($personalizations as $personalization) {
+                self::assertArrayNotHasKey('cc', $personalization);
+                self::assertArrayNotHasKey('bcc', $personalization);
+            }
+            return new MockResponse('', ['http_code' => 202]);
+        });
+        (new SendGridTransport($client, 'key'))->send($this->email()->to()->bcc('first@example.com', 'second@example.com'));
+    }
+
+    public function testDuplicateRecipientsAreSentOnceWithToPriority(): void
+    {
+        $client = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
+            $personalization = json_decode($options['body'], true)['personalizations'][0];
+            self::assertSame([['email' => 'ana@example.com']], $personalization['to']);
+            self::assertArrayNotHasKey('cc', $personalization);
+            self::assertArrayNotHasKey('bcc', $personalization);
+            return new MockResponse('', ['http_code' => 202]);
+        });
+        (new SendGridTransport($client, 'key'))->send($this->email()->cc('ana@example.com')->bcc('ana@example.com'));
+    }
+
+    public function testVisibleFromIsIndependentOfBounceAddress(): void
+    {
+        $client = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
+            self::assertSame(['email' => 'school@example.com', 'name' => 'School'], json_decode($options['body'], true)['from']);
+            self::assertStringNotContainsString('bounce@example.com', $options['body']);
+            return new MockResponse('', ['http_code' => 202]);
+        });
+        $email = $this->email()->from(new Address('school@example.com', 'School'))->returnPath('bounce@example.com');
+        $sent = (new SendGridTransport($client, 'key'))->send($email);
+        self::assertSame('bounce@example.com', $sent->getEnvelope()->getSender()->getAddress());
     }
 
     /** @dataProvider responseStatuses */
@@ -122,7 +177,6 @@ final class SendGridTransportTest extends TestCase
         $email = match ($case) {
             'plain' => (new Email())->from('a@example.com')->to('b@example.com')->text('text'),
             'content' => $this->email()->html('ignored'),
-            'only bcc' => $this->email()->to()->bcc('bcc@example.com'),
             default => $this->email(),
         };
         $this->expectException(PermanentTransportException::class);
@@ -131,7 +185,7 @@ final class SendGridTransportTest extends TestCase
 
     public static function localFailures(): iterable
     {
-        foreach (['plain', 'content', 'only bcc', 'missing key'] as $case) { yield [$case]; }
+        foreach (['plain', 'content', 'missing key'] as $case) { yield [$case]; }
     }
 
     public function testRejectedMessageEventPreventsSending(): void

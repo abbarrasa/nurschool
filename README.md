@@ -434,7 +434,7 @@ Configure `MAILER_FROM`, `REGISTRATION_BASE_URL` (the trusted public HTTPS origi
 Use a verified sender, an API key with Mail Send permission, and active dynamic
 templates with IDs of the form `d-` followed by 32 hexadecimal characters.
 Each template defines its translated subject and body and receives `{{url}}`
-and `{{ttl}}` (seconds). The locale mapping lives in `config/services.yaml`;
+and `{{ttl}}` (seconds). The `verification` family locale mapping lives in `config/services.yaml`;
 keep it aligned with `framework.enabled_locales` when adding languages. Missing
 or invalid template IDs fail before enqueueing rather than silently discarding
 mail. Keep credentials in environment secrets or uncommitted `.env.local`.
@@ -484,8 +484,13 @@ serializes without overriding internal methods. Its empty MIME body allows
 validation and profiler rendering; no `content` or `subject` is sent to SendGrid.
 Local subjects, text, HTML, and attachments are explicitly rejected to avoid
 silently discarding content. The transport supports To, Cc, Bcc and one Reply-To;
-at least one To recipient and exactly one From address are required. The actual
-delivery envelope is authoritative, including recipient overrides.
+exactly one From address is required. The delivery envelope controls recipients,
+including development overrides. Cc/Bcc-only envelopes use one personalization
+per recipient so no hidden recipient is disclosed to another. Duplicate
+addresses are sent once, with To taking precedence over Cc and Bcc. The visible
+From and its display name come from the email, independently of the envelope
+sender. Custom SMTP bounce addresses are not sent to the API; SendGrid manages
+bounce handling through its authenticated domain configuration.
 These internal template headers are converted to API fields, not forwarded as
 email headers. Additional custom headers are not part of this transport's API.
 

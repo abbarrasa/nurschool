@@ -89,24 +89,42 @@ final class SendGridTransport extends AbstractTransport
         $kinds = [];
         foreach (['to' => $email->getTo(), 'cc' => $email->getCc(), 'bcc' => $email->getBcc()] as $kind => $group) {
             foreach ($group as $address) {
-                $addresses[$address->getAddress()] = $address;
-                $kinds[$address->getAddress()] = $kind;
+                $key = $address->getAddress();
+                if (!isset($kinds[$key])) {
+                    // A repeated recipient keeps the first role: To, then Cc, then Bcc.
+                    $addresses[$key] = $address;
+                    $kinds[$key] = $kind;
+                }
             }
         }
         $personalization = ['dynamic_template_data' => (object) $email->getTemplateData()];
+        $recipients = [];
         // The envelope is authoritative, including development recipient overrides. Never
         // reintroduce original Cc/Bcc recipients that a Mailer listener removed from it.
         foreach ($envelope->getRecipients() as $recipient) {
             $key = $recipient->getAddress();
-            $personalization[$kinds[$key] ?? 'to'][] = $this->address($addresses[$key] ?? $recipient);
+            if (isset($recipients[$key])) {
+                continue;
+            }
+            $recipients[$key] = $this->address($addresses[$key] ?? $recipient);
+            $personalization[$kinds[$key] ?? 'to'][] = $recipients[$key];
         }
+        $personalizations = [$personalization];
         if (empty($personalization['to'])) {
-            throw new PermanentTransportException('SendGrid requires at least one To recipient in the envelope.');
+            // SendGrid requires To. Separate personalizations satisfy that requirement without
+            // exposing one Bcc recipient to another when the envelope contains only Cc/Bcc.
+            $personalizations = [];
+            foreach ($recipients as $recipient) {
+                $personalizations[] = [
+                    'to' => [$recipient],
+                    'dynamic_template_data' => $personalization['dynamic_template_data'],
+                ];
+            }
         }
         $payload = [
-            'from' => $this->address($envelope->getSender()),
+            'from' => $this->address($email->getFrom()[0]),
             'template_id' => $email->getTemplateId(),
-            'personalizations' => [$personalization],
+            'personalizations' => $personalizations,
         ];
         if ($replyTo = $email->getReplyTo()) {
             $payload['reply_to'] = $this->address($replyTo[0]);
