@@ -451,7 +451,9 @@ registered accounts cannot authenticate until verification succeeds.
 
 The email links to `/verify-account` with a 256-bit random token in the URL
 fragment, keeping it out of HTTP access logs and referrers. Vue removes the
-fragment from history and requires confirmation before posting JSON
+fragment from history after copying it to the language selector links. Locale
+navigation preserves query parameters and carries the token only in the fragment;
+successful verification removes it from those links. Vue requires confirmation before posting JSON
 `{"token":"..."}` to `/api/account-verifications`. This avoids consuming links
 through ordinary mail scanner GET requests. The user record stores only SHA-256
 hashes and atomically consumes unexpired tokens; invalid, expired, and reused
@@ -578,3 +580,26 @@ registrations and drain both its pending and failed messages using the old code
 before deploying this refactor. Existing serialized `SendDynamicTemplateEmail`
 rows cannot be consumed after its class is removed; the queue schema itself is
 unchanged. Do not delete pending email rows as part of deployment.
+
+### Messenger migration regression test
+
+`Version20260923123000` queues explicit MariaDB `CREATE TABLE` and `DROP TABLE`
+statements through `addSql()`. `MessengerMigrationTest` runs Doctrine's real
+`MigrateCommand` against a disposable MariaDB database, checks version tracking,
+queue persistence with `auto_setup: false`, transaction rollback, and reversal.
+SQLite queue tests use transport setup separately because production DDL targets
+MariaDB. Without `MESSENGER_MIGRATION_TEST_HOST`, the MariaDB test is skipped.
+
+To run it using the local Docker environment (wait for the health check to pass):
+
+```sh
+docker run -d --rm --name nurschool-migration-test --network nurschool_default --tmpfs /var/lib/mysql -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1 -e MARIADB_DATABASE=nurschool_migration_test -e MARIADB_USER=migration_test -e MARIADB_PASSWORD=migration_test mariadb:11.4
+docker exec nurschool-migration-test healthcheck.sh --connect --innodb_initialized
+docker exec -e MESSENGER_MIGRATION_TEST_HOST=nurschool-migration-test nurschool-php php -d xdebug.mode=off vendor/bin/simple-phpunit tests/Integration/MessengerMigrationTest.php
+docker stop nurschool-migration-test
+```
+
+The fixed test credentials apply only to the disposable database. No application
+connection or data is used. Editing an already recorded migration does not cause
+Doctrine to execute it again; an installation missing the table requires an
+explicit deployment repair rather than merely rerunning `migrate`.

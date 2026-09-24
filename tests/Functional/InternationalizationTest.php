@@ -45,6 +45,22 @@ final class InternationalizationTest extends WebTestCase
         self::assertResponseHeaderSame('Content-Language', 'es');
     }
 
+    public function testLocaleLinksPreserveQueryParametersAcrossLanguageChanges(): void
+    {
+        $browser = self::createClient();
+        $parameters = ['source' => 'email & invitation', 'filters' => ['one', 'two'], 'empty' => '', '_locale' => 'es'];
+        $browser->request('GET', '/verify-account', $parameters);
+        foreach (['English' => 'en', 'Español' => 'es'] as $label => $locale) {
+            $crawler = $browser->clickLink($label);
+            self::assertResponseIsSuccessful();
+            self::assertResponseHeaderSame('Content-Language', $locale);
+            self::assertSame('/verify-account', $browser->getRequest()->getPathInfo());
+            $parameters['_locale'] = $locale;
+            self::assertEquals($parameters, $browser->getRequest()->query->all());
+            self::assertCount(1, $crawler->filter('#registration-app'));
+        }
+    }
+
     public function testUnsupportedAndMalformedSelectionsDoNotOverwritePreferences(): void
     {
         $browser = self::createClient([], ['HTTP_ACCEPT_LANGUAGE' => '']);
