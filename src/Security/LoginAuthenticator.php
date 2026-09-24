@@ -37,7 +37,7 @@ final class LoginAuthenticator extends AbstractAuthenticator
             || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new BadRequestHttpException('A valid email address and a non-empty password are required.');
         }
-        return new Passport(new UserBadge($email), new PasswordCredentials($password));
+        return new Passport(new UserBadge(strtolower(trim($email))), new PasswordCredentials($password));
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): Response

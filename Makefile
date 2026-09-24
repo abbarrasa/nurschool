@@ -61,7 +61,7 @@ composer-update: ## Updates composer dependencies
 logs: ## Tails the Symfony dev log
 	$(ENV_VARS) docker exec -it $(USER_ARG) ${DOCKER_CONTAINER} tail -f var/log/dev.log
 
-bash: ## Opens a shell in the container
+console: ## Opens a shell in the container
 	$(ENV_VARS) docker exec -it $(USER_ARG) ${DOCKER_CONTAINER} sh
 
 code-style-install: ## Installs php-cs-fixer

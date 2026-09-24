@@ -31,5 +31,6 @@
         <button class="{{ ui.classes('primaryButton') }} submit-action" type="submit" :disabled="loading" v-text="loading ? messages['login.submitting'] : messages['login.submit']"></button>
     </form>
     <p v-if="user" v-cloak role="status" class="{{ ui.classes('info') }}">{{ 'login.success'|trans }}</p>
+<a href="{{ path('nurschool_register') }}">{{ 'registration.title'|trans }}</a>
 </section>
 {% endblock %}

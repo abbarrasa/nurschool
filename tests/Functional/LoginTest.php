@@ -21,7 +21,7 @@ final class LoginTest extends WebTestCase
         $schema = new SchemaTool($em);
         $schema->dropSchema($metadata);
         $schema->createSchema($metadata);
-        $user = (new User())->setEmail('student@example.com');
+        $user = (new User())->markVerified()->setEmail('student@example.com');
         $user->setPassword(password_hash('correct-password', PASSWORD_BCRYPT, ['cost' => 4]));
         $em->persist($user);
         $em->flush();

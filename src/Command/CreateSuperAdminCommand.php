@@ -64,7 +64,7 @@ final class CreateSuperAdminCommand extends Command
             });
             $io->askQuestion($confirmation);
 
-            $user = (new User())->setEmail($email);
+            $user = (new User())->setEmail($email)->markVerified();
             $user->setPassword($this->passwordHasher->hashPassword($user, $password));
             unset($password);
 

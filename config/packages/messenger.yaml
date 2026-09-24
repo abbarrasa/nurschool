@@ -1,0 +1,22 @@
+framework:
+    messenger:
+        failure_transport: failed
+        transports:
+            sendgrid:
+                # The registration transaction and queue must use the same connection.
+                dsn: 'doctrine://default'
+                options:
+                    queue_name: sendgrid
+                    auto_setup: false
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 60000
+            failed:
+                dsn: 'doctrine://default'
+                options:
+                    queue_name: failed
+                    auto_setup: false
+        routing:
+            Symfony\Component\Mailer\Messenger\SendEmailMessage: sendgrid

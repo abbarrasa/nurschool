@@ -4,6 +4,10 @@
     <php>
         <server name="APP_ENV" value="test" force="true"/>
         <server name="APP_DEBUG" value="1" force="true"/>
+
+        <!-- ###+ symfony/mailer ### -->
+        <env name="MAILER_DSN" value="sendgrid+dynamic://test-key@default"/>
+        <!-- ###- symfony/mailer ### -->
     </php>
 
     <testsuites>

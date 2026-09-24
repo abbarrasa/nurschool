@@ -259,7 +259,7 @@ required to run the application; Node.js is needed only for frontend tests.
 | `make show` | Inspect containers and Docker volumes, images, and networks |
 | `make composer-install` | Install locked dependencies as the development user |
 | `make composer-update` | Intentionally update dependencies and the lock file |
-| `make bash` | Open an interactive PHP shell as the development user |
+| `make console` | Open an interactive PHP shell as the development user |
 | `make logs` | Follow `var/log/dev.log` when that file exists |
 
 After changing the Dockerfile, run `make build` followed by `make start`. After
@@ -405,3 +405,201 @@ docker exec -e XDEBUG_MODE=coverage -e SHELL_VERBOSITY=-1 nurschool-php php vend
 docker exec nurschool-php php -d xdebug.mode=off vendor/bin/phpstan analyse --no-progress --memory-limit=512M
 node --test tests/frontend/*.test.js
 ```
+
+## Public registration and email verification
+
+`GET /register` renders the Twig/Vue form. `POST /api/registrations` accepts JSON:
+
+```json
+{"email":"nurse@example.com","password":"a-long-secret-password","roles":["ROLE_NURSE","ROLE_ADMIN"]}
+```
+
+Email and password are required. Passwords require at least 12 characters and at
+most 72 bytes (the bcrypt limit); emails are trimmed and lowercased. Omit `roles`
+or pass `[]` for basic access. Only `ROLE_NURSE` and `ROLE_ADMIN` can be selected;
+all registered users receive `ROLE_USER`. **Public registration intentionally
+allows administrator self-selection**, as required by the product specification.
+No other role or verification state can be supplied by the caller.
+
+The API returns 201 after the account and its verification email are committed
+atomically to the same Doctrine connection. Invalid data returns 422 and an
+existing email returns 409. An enqueue failure rolls back the account. SendGrid
+is contacted only by a Messenger worker; later delivery failures do not delete
+the account. This implementation does not provide resend or expired-account
+recovery.
+
+Configure `MAILER_FROM`, `REGISTRATION_BASE_URL` (the trusted public HTTPS origin),
+`REGISTRATION_TTL` (seconds; default 604800 = seven days), `MAILER_DSN`,
+`SENDGRID_VERIFICATION_TEMPLATE_ES`, and `SENDGRID_VERIFICATION_TEMPLATE_EN`.
+Use a verified sender, an API key with Mail Send permission, and active dynamic
+templates with IDs of the form `d-` followed by 32 hexadecimal characters.
+Each template defines its translated subject and body and receives `{{url}}`
+and `{{ttl}}` (seconds). The `verification` family locale mapping lives in `config/services.yaml`;
+keep it aligned with `framework.enabled_locales` when adding languages. Missing
+or invalid template IDs fail before enqueueing rather than silently discarding
+mail. Keep credentials in environment secrets or uncommitted `.env.local`.
+
+Set `MAILER_DSN=sendgrid+dynamic://YOUR_URL_ENCODED_API_KEY@default` to use the
+custom Mailer transport. The default `null://null` deliberately discards emails;
+it is only suitable for local development. Tests use the real custom transport
+with a dedicated mock HTTP client and a disposable SQLite Doctrine queue.
+
+Apply `php bin/console doctrine:migrations:migrate` before using the feature.
+Existing accounts are explicitly grandfathered as verified; trusted accounts
+created by `app:user:create-super-admin` are verified by the command. Newly
+registered accounts cannot authenticate until verification succeeds.
+
+The email links to `/verify-account` with a 256-bit random token in the URL
+fragment, keeping it out of HTTP access logs and referrers. Vue removes the
+fragment from history after copying it to the language selector links. Locale
+navigation preserves query parameters and carries the token only in the fragment;
+successful verification removes it from those links. Vue requires confirmation before posting JSON
+`{"token":"..."}` to `/api/account-verifications`. This avoids consuming links
+through ordinary mail scanner GET requests. The user record stores only SHA-256
+hashes and atomically consumes unexpired tokens; invalid, expired, and reused
+tokens return 422. Successful verification returns 200 and does not log in the
+user automatically. Browser messages use the translation catalogs; email
+translations are maintained in the configured SendGrid templates.
+
+`VerificationEmailSender` is the enqueue boundary. To replace this integration,
+implement that interface and change its service alias in `config/services.yaml`.
+The registration service and API do not depend on a transport implementation.
+The registration view uses the same semantic Twig theme adapter as login; theme
+replacement does not require changing Vue requests or backend behavior.
+
+Registration checks (inside the PHP container unless stated otherwise):
+
+```sh
+php vendor/bin/simple-phpunit tests/Functional/RegistrationTest.php
+XDEBUG_MODE=coverage php vendor/bin/simple-phpunit --coverage-text --coverage-clover var/coverage.xml
+php -d xdebug.mode=off vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+php bin/console lint:twig templates
+# On a host with Node.js:
+node --test tests/frontend/*.test.js
+```
+
+## SendGrid dynamic template queue
+
+`Mail/SendGrid/Message/DynamicTemplateEmail` extends Symfony's `Email` and stores
+its template ID and JSON variables in internal MIME headers, which Symfony
+serializes without overriding internal methods. Its empty MIME body allows
+validation and profiler rendering; no `content` or `subject` is sent to SendGrid.
+Local subjects, text, HTML, and attachments are explicitly rejected to avoid
+silently discarding content. The transport supports To, Cc, Bcc and one Reply-To;
+exactly one From address is required. The delivery envelope controls recipients,
+including development overrides. Cc/Bcc-only envelopes use one personalization
+per recipient so no hidden recipient is disclosed to another. Duplicate
+addresses are sent once, with To taking precedence over Cc and Bcc. The visible
+From and its display name come from the email, independently of the envelope
+sender. Custom SMTP bounce addresses are not sent to the API; SendGrid manages
+bounce handling through its authenticated domain configuration.
+These internal template headers are converted to API fields, not forwarded as
+email headers. Additional custom headers are not part of this transport's API.
+
+`Mail/SendGrid/Transport/SendGridTransport` extends `AbstractTransport`, preserving
+`MessageEvent`, `SentMessageEvent`, `FailedMessageEvent`, and the provider message
+ID. Its factory registers `sendgrid+dynamic://KEY@default`. API credentials are
+resolved from the DSN by the worker and are not stored in queued messages.
+The official `symfony/sendgrid-mailer` bridge is no longer required. Mailer,
+HttpClient, Messenger and Doctrine Messenger remain required dependencies.
+
+`SendGridVerificationEmailSender` uses `SendGridTemplateProvider` to select the
+locale-specific template and calls `MailerInterface`. Messenger routes Symfony's
+`SendEmailMessage` to Doctrine. There is no application-specific queue message or
+handler. All messages submitted to the configured Mailer follow this routing;
+this transport only accepts `DynamicTemplateEmail` instances.
+
+To send another email using the configured template provider, inject
+`MailerInterface` and `SendGridTemplateProvider`:
+
+```php
+use Nurschool\Mail\SendGrid\Message\DynamicTemplateEmail;
+
+$email = (new DynamicTemplateEmail(
+    $templates->getTemplateId($locale),
+    ['url' => $verificationUrl, 'ttl' => $ttl],
+))->from($sender)->to($recipient);
+
+$mailer->send($email);
+```
+
+The template defines the translated subject and complete content. The caller
+supplies no local HTML, text or subject. If adding other template families,
+extend the provider's configuration rather than embedding template IDs in mail
+senders.
+
+Install dependencies and apply migrations before accepting registrations. The
+queue uses `doctrine://default` with `auto_setup: false` so DDL cannot implicitly
+commit a registration transaction. Migration `Version20260923123000` creates
+`messenger_messages`, shared by the `sendgrid` and `failed` queues.
+
+```sh
+composer install
+php bin/console doctrine:migrations:migrate
+php bin/console messenger:consume sendgrid --time-limit=3600 --memory-limit=128M
+```
+
+In this Docker environment, prefix console commands with
+`docker exec nurschool-php`. Run the worker under Supervisor, systemd, or another
+process manager in production, configured to restart it when it exits. Run
+`php bin/console messenger:stop-workers` after deployment so workers reload code
+and configuration. No worker is started automatically by this repository.
+
+Network failures, HTTP 408/429, and HTTP 5xx receive at most three retries with
+exponential delays starting at one second. Other rejected responses (including
+400/401/403) move directly to `failed`. A missing API key in the DSN prevents
+transport initialization. Only HTTP 202 counts as acceptance; it does not
+guarantee inbox delivery. Failures are Mailer `TransportException` instances;
+permanent failures also
+implement Messenger's `UnrecoverableExceptionInterface`. Temporary failures do
+not implement `RecoverableExceptionInterface`, so the configured retry limit
+continues to apply. Exceptions omit HTTP body and credentials. Inspect and retry
+failed messages after fixing the cause:
+
+```sh
+php bin/console messenger:failed:show --transport=failed
+php bin/console messenger:failed:retry --transport=failed
+```
+
+Doctrine/Messenger provides at-least-once delivery. A worker crash after SendGrid
+accepts a message but before acknowledgement can cause a duplicate email. Queue
+rows include the recipient and template variables, including the verification
+link token; restrict database and failure-queue access and remove obsolete failed
+messages according to your retention policy. Successful messages are removed on
+acknowledgement. The token expiration starts at registration, not worker delivery;
+retrying a message after expiration does not renew its link.
+
+Targeted queue checks:
+
+```sh
+php vendor/bin/simple-phpunit --filter 'DynamicTemplate|SendGrid|RegistrationTest'
+```
+
+When upgrading from the earlier application-specific queue message, stop new
+registrations and drain both its pending and failed messages using the old code
+before deploying this refactor. Existing serialized `SendDynamicTemplateEmail`
+rows cannot be consumed after its class is removed; the queue schema itself is
+unchanged. Do not delete pending email rows as part of deployment.
+
+### Messenger migration regression test
+
+`Version20260923123000` queues explicit MariaDB `CREATE TABLE` and `DROP TABLE`
+statements through `addSql()`. `MessengerMigrationTest` runs Doctrine's real
+`MigrateCommand` against a disposable MariaDB database, checks version tracking,
+queue persistence with `auto_setup: false`, transaction rollback, and reversal.
+SQLite queue tests use transport setup separately because production DDL targets
+MariaDB. Without `MESSENGER_MIGRATION_TEST_HOST`, the MariaDB test is skipped.
+
+To run it using the local Docker environment (wait for the health check to pass):
+
+```sh
+docker run -d --rm --name nurschool-migration-test --network nurschool_default --tmpfs /var/lib/mysql -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1 -e MARIADB_DATABASE=nurschool_migration_test -e MARIADB_USER=migration_test -e MARIADB_PASSWORD=migration_test mariadb:11.4
+docker exec nurschool-migration-test healthcheck.sh --connect --innodb_initialized
+docker exec -e MESSENGER_MIGRATION_TEST_HOST=nurschool-migration-test nurschool-php php -d xdebug.mode=off vendor/bin/simple-phpunit tests/Integration/MessengerMigrationTest.php
+docker stop nurschool-migration-test
+```
+
+The fixed test credentials apply only to the disposable database. No application
+connection or data is used. Editing an already recorded migration does not cause
+Doctrine to execute it again; an installation missing the table requires an
+explicit deployment repair rather than merely rerunning `migrate`.

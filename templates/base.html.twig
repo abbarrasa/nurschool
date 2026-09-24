@@ -16,7 +16,7 @@
             <a class="site-brand" href="{{ path('nurschool_home') }}">Nurschool</a>
             <div class="language-switcher" aria-label="{{ 'nav.language'|trans }}">
                 {% for locale in enabled_locales %}
-                    <a href="{{ path(app.request ? app.request.attributes.get('_route')|default('nurschool_home') : 'nurschool_home', (app.request ? app.request.attributes.get('_route_params')|default({}) : {})|merge({_locale: locale})) }}"
+                    <a href="{{ path(app.request ? app.request.attributes.get('_route')|default('nurschool_home') : 'nurschool_home', (app.request ? app.request.query.all : {})|merge(app.request ? app.request.attributes.get('_route_params')|default({}) : {})|merge({_locale: locale})) }}"
                        lang="{{ locale }}" hreflang="{{ locale }}" data-locale="{{ locale }}"
                        {% if locale == (app.request ? app.request.locale : app.locale) %}aria-current="true"{% endif %}>{{ ('locale.' ~ locale)|trans({}, 'messages', locale) }}</a>
                 {% endfor %}

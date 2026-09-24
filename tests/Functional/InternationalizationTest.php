@@ -45,6 +45,22 @@ final class InternationalizationTest extends WebTestCase
         self::assertResponseHeaderSame('Content-Language', 'es');
     }
 
+    public function testLocaleLinksPreserveQueryParametersAcrossLanguageChanges(): void
+    {
+        $browser = self::createClient();
+        $parameters = ['source' => 'email & invitation', 'filters' => ['one', 'two'], 'empty' => '', '_locale' => 'es'];
+        $browser->request('GET', '/verify-account', $parameters);
+        foreach (['English' => 'en', 'Español' => 'es'] as $label => $locale) {
+            $crawler = $browser->clickLink($label);
+            self::assertResponseIsSuccessful();
+            self::assertResponseHeaderSame('Content-Language', $locale);
+            self::assertSame('/verify-account', $browser->getRequest()->getPathInfo());
+            $parameters['_locale'] = $locale;
+            self::assertEquals($parameters, $browser->getRequest()->query->all());
+            self::assertCount(1, $crawler->filter('#registration-app'));
+        }
+    }
+
     public function testUnsupportedAndMalformedSelectionsDoNotOverwritePreferences(): void
     {
         $browser = self::createClient([], ['HTTP_ACCEPT_LANGUAGE' => '']);
@@ -86,7 +102,7 @@ final class InternationalizationTest extends WebTestCase
         $schema = new SchemaTool($em);
         $schema->dropSchema($metadata);
         $schema->createSchema($metadata);
-        $user = (new User())->setEmail('locale@example.com')->setPassword(password_hash('correct-password', PASSWORD_BCRYPT, ['cost' => 4]));
+        $user = (new User())->markVerified()->setEmail('locale@example.com')->setPassword(password_hash('correct-password', PASSWORD_BCRYPT, ['cost' => 4]));
         $em->persist($user);
         $em->flush();
         $browser->request('GET', '/login?_locale='.$locale);
