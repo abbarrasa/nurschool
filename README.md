@@ -603,3 +603,89 @@ The fixed test credentials apply only to the disposable database. No application
 connection or data is used. Editing an already recorded migration does not cause
 Doctrine to execute it again; an installation missing the table requires an
 explicit deployment repair rather than merely rerunning `migrate`.
+
+## Social sign-in (Google and Facebook)
+
+Both `/login` and `/register` mount a shared Vue interface from
+`templates/security/social_login.html.twig`. Vue starts the flow with a same-origin
+JSON POST to `/api/oauth/{provider}/start`. API Platform owns both this operation
+and the GET `/api/oauth/{provider}/callback`; both set `openapi: false` and are
+excluded from public OpenAPI documentation. They remain reachable by browsers.
+Symfony Security handles the callback, rotates the authenticated session, applies
+the existing user checker, and redirects to `nurschool_home`.
+
+Configure the following environment variables privately (for example in `.env.local`):
+
+- `OAUTH_BASE_URL`: canonical public origin, HTTPS in production; never derived from the request Host header.
+- `OAUTH_GOOGLE_CLIENT_ID` and `OAUTH_GOOGLE_CLIENT_SECRET`: Google web application credentials.
+- `OAUTH_FACEBOOK_CLIENT_ID` and `OAUTH_FACEBOOK_CLIENT_SECRET`: Facebook application credentials.
+- `OAUTH_FACEBOOK_VERSION`: Graph API version enabled for the application (default `v23.0`).
+
+Register these exact authorized redirect URIs with the respective provider,
+replacing the origin with `OAUTH_BASE_URL`:
+
+- `https://your-domain.example/api/oauth/google/callback`
+- `https://your-domain.example/api/oauth/facebook/callback`
+
+Enable Google email/OpenID scopes and Facebook Login with the email permission.
+Configure consent screens, application domains, test users, and production access
+in the provider dashboards. Facebook users must grant email access and have an
+email available. Missing email, unverified Google email, denied consent, expired
+state, and provider/network failures all return a translated retry message.
+See [Google's web-server flow](https://developers.google.com/identity/protocols/oauth2/web-server)
+and [Facebook's manual flow](https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/).
+
+Run `php bin/console doctrine:migrations:migrate` before enabling sign-in. The new
+`social_identity` table identifies accounts by provider and subject, independently
+of later email changes. New users receive only `ROLE_USER`, are marked verified,
+and receive an unknowable random hashed local password. No access or refresh
+tokens are persisted. An email collision with an existing local or other-provider
+account is rejected: users must use their original sign-in method. Linking existing
+accounts is intentionally outside this flow and would require reauthentication.
+
+The session binds one pending attempt to a provider and random single-use state
+with a ten-minute expiry. Starting another attempt replaces the previous one.
+Failures return to `/login?oauth_error=1`, where both social buttons and password
+login remain available. Provider error details and account existence are not exposed.
+
+No additional packages are needed: the implementation uses the installed Symfony
+HttpClient/Security and API Platform components. Presentation classes remain in the
+shared Twig theme adapter; changing that adapter and its stylesheet leaves OAuth
+and Vue data loading unchanged. Automated tests use Symfony MockHttpClient and a
+disposable SQLite database, never live provider credentials.
+
+Validation commands (run inside the PHP container from `/var/www/nurschool`):
+
+```sh
+php -d xdebug.mode=off vendor/bin/simple-phpunit --filter 'SocialLoginTest|OAuthFlowTest|ProviderClientTest'
+php -d xdebug.mode=coverage vendor/bin/simple-phpunit --coverage-clover var/oauth-coverage.xml
+php -d xdebug.mode=off vendor/bin/phpstan analyse --no-progress
+```
+
+Run `node --test tests/frontend/*.test.js` for the frontend suite.
+
+### Adding an OAuth provider
+
+`ProviderClient` orchestrates HTTP calls and validates the common identity shape.
+It discovers services implementing `Nurschool\OAuth\Provider\ProviderInterface`
+through Symfony's `nurschool.oauth_provider` autoconfiguration tag. Provider names
+must be unique. Google and Facebook own their credentials, endpoints, scopes,
+request parameters, and profile-specific trust checks in separate services.
+
+To add another network:
+
+1. Implement `ProviderInterface` in a service under `src/OAuth/Provider`. Return a
+   stable `name()`, construct the authorization URL, describe token/profile calls
+   with `ProviderRequest`, and map the provider response to `subject` and `email`.
+   Validate any provider-specific verification claims before returning the identity.
+2. Inject that service's configuration and secrets in `config/services.yaml`.
+   Symfony registers implementations automatically; do not edit `ProviderClient`.
+3. Add the provider name to the allowed route requirements in
+   `src/ApiResource/SocialLogin.php`, register its callback with the provider, and
+   add its translated button to the shared social-login template when exposing it.
+4. Test its requests and trust checks with fake HTTP responses. The client test
+   includes a third provider with different response fields and HTTP options.
+
+`ProviderRequest` supports provider-specific methods and Symfony HttpClient options,
+including JSON/form bodies, headers, and query parameters. The shared client always
+applies its timeout and redirect safeguards. Credentials and tokens stay server-side.

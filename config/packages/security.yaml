@@ -22,6 +22,7 @@ security:
             provider: app_user_provider
 
             custom_authenticators:
+                - Nurschool\Security\SocialAuthenticator
                 - Nurschool\Security\LoginAuthenticator
             entry_point: Nurschool\Security\AuthenticationEntryPoint
             logout:
