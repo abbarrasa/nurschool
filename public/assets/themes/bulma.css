@@ -1,0 +1,12 @@
+/* Framework-specific dependencies and overrides belong only in this theme. */
+@import url('../vendor/bulma/bulma.min.css');
+
+:root {
+    --bulma-primary-h: 171deg;
+    --bulma-primary-s: 65%;
+    --bulma-primary-l: 29%;
+    --bulma-primary-invert-l: 100%;
+    --bulma-link-h: 171deg;
+    --bulma-link-s: 65%;
+    --bulma-link-l: 33%;
+}

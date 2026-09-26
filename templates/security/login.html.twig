@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+{% import ui_theme as ui %}
+{% block title %}{{ 'login.title'|trans }} · Nurschool{% endblock %}
+{% block javascripts %}<script type="module" src="/assets/login.js"></script>{% endblock %}
+{% block body %}
+<section id="login-app" class="{{ ui.classes('panel') }} login-panel"
+         data-messages="{{ {
+             'login.submit': 'login.submit'|trans,
+             'login.submitting': 'login.submitting'|trans,
+             'login.error.credentials': 'login.error.credentials'|trans,
+             'login.error.validation': 'login.error.validation'|trans,
+             'login.error.throttled': 'login.error.throttled'|trans,
+             'login.error.server': 'login.error.server'|trans,
+             'login.error.network': 'login.error.network'|trans
+         }|json_encode|e('html_attr') }}" data-login-url="{{ path('api_login') }}" data-home-url="{{ path('nurschool_home') }}" aria-labelledby="login-title">
+    <div class="login-intro">
+        <h1 id="login-title" class="{{ ui.classes('title') }}">{{ 'login.title'|trans }}</h1>
+        <p class="{{ ui.classes('subtitle') }}">{{ 'login.subtitle'|trans }}</p>
+    </div>
+    <noscript><p class="{{ ui.classes('error') }}">{{ 'login.javascript'|trans }}</p></noscript>
+    <form @submit.prevent="submit" v-cloak v-if="!user" :aria-busy="loading">
+        <div class="{{ ui.classes('field') }}">
+            <label class="{{ ui.classes('label') }}" for="email">{{ 'login.email'|trans }}</label>
+            <input class="{{ ui.classes('input') }}" id="email" name="email" type="email" autocomplete="username" maxlength="180" required v-model="email" :disabled="loading" :aria-invalid="Boolean(error)" :aria-describedby="error ? 'login-error' : null">
+        </div>
+        <div class="{{ ui.classes('field') }}">
+            <label class="{{ ui.classes('label') }}" for="password">{{ 'login.password'|trans }}</label>
+            <input class="{{ ui.classes('input') }}" id="password" name="password" type="password" autocomplete="current-password" maxlength="4096" required v-model="password" :disabled="loading" :aria-invalid="Boolean(error)" :aria-describedby="error ? 'login-error' : null">
+        </div>
+        <p id="login-error" v-if="error" role="alert" class="{{ ui.classes('error') }} form-error" v-text="error"></p>
+        <button class="{{ ui.classes('primaryButton') }} submit-action" type="submit" :disabled="loading" v-text="loading ? messages['login.submitting'] : messages['login.submit']"></button>
+    </form>
+    <p v-if="user" v-cloak role="status" class="{{ ui.classes('info') }}">{{ 'login.success'|trans }}</p>
+<a href="{{ path('nurschool_register') }}">{{ 'registration.title'|trans }}</a>
+</section>
+{% include 'security/social_login.html.twig' %}
+{% endblock %}

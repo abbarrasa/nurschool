@@ -1,9 +1,24 @@
+# yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
+
 # This file is the entry point to configure your own services.
 # Files in the packages/ subdirectory configure your dependencies.
+# See also https://symfony.com/doc/current/service_container/import.html
 
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    env(OAUTH_GOOGLE_CLIENT_ID): ''
+    env(OAUTH_GOOGLE_CLIENT_SECRET): ''
+    env(OAUTH_FACEBOOK_CLIENT_ID): ''
+    env(OAUTH_FACEBOOK_CLIENT_SECRET): ''
+    env(OAUTH_BASE_URL): 'http://localhost:8080'
+    env(OAUTH_FACEBOOK_VERSION): 'v23.0'
+    env(SENDGRID_VERIFICATION_TEMPLATE_ES): ''
+    env(SENDGRID_VERIFICATION_TEMPLATE_EN): ''
+    env(MAILER_DSN): 'null://null'
+    env(MAILER_FROM): 'no-reply@nurschool.example'
+    env(REGISTRATION_BASE_URL): 'http://localhost:8080'
+    env(REGISTRATION_TTL): '604800'
 
 services:
     # default configuration for services in *this* file
@@ -16,32 +31,60 @@ services:
     Nurschool\:
         resource: '../src/'
         exclude:
-            - '../src/DependencyInjection/'
-            - '../src/Entity/'
-            - '../src/Kernel.php'
+            - '../src/OAuth/Provider/ProviderRequest.php'
+            - '../src/Mail/SendGrid/Message/'
+            - '../src/Mail/SendGrid/Transport/SendGridTransport.php'
+            - '../src/Mail/SendGrid/Transport/Exception/'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
-    Nurschool\Mailer\Mailer: '@Nurschool\Mailer\Sendgrid\SendgridMailer'
 
-    SendGrid:
-        class: \SendGrid
-        arguments: [ '%nurschool_sendgrid.api_key%' ]
+    Nurschool\Mail\VerificationEmailSender:
+        alias: Nurschool\Mail\SendGrid\SendGridVerificationEmailSender
 
-    Nurschool\Storage\LocalFileManager:
-        arguments: [ '%kernel.project_dir%/public/' ]
-
-    Nurschool\Mailer\Sendgrid\Provider\SendgridProvider:
+    Nurschool\Mail\SendGrid\Template\SendGridTemplateProvider:
         arguments:
-            - '@SendGrid'
-            - '@event_dispatcher'
-            - '%nurschool_sendgrid.disable_delivery%'
-            - '%nurschool_sendgrid.sandbox%'
+            $defaultLocale: '%kernel.default_locale%'
+            $templates:
+                verification:
+                    es: '%env(SENDGRID_VERIFICATION_TEMPLATE_ES)%'
+                    en: '%env(SENDGRID_VERIFICATION_TEMPLATE_EN)%'
 
-    Nurschool\Mailer\Sendgrid\SendgridMailer:
-        arguments:
-            $configuration: '%nurschool_sendgrid.emails%'
+    sendgrid.http_client: '@http_client'
 
-    Nurschool\Service\UrlSigner\Sha256UrlSigner:
+    Nurschool\Mail\SendGrid\Transport\SendGridTransportFactory:
         arguments:
-            $secret: '%env(string:APP_SECRET)%'
+            $client: '@sendgrid.http_client'
+        tags: ['mailer.transport_factory']
+
+    oauth.http_client: '@http_client'
+
+    Nurschool\OAuth\ProviderClient:
+        arguments:
+            $client: '@oauth.http_client'
+            $baseUrl: '%env(OAUTH_BASE_URL)%'
+
+    Nurschool\OAuth\Provider\GoogleProvider:
+        arguments:
+            $clientId: '%env(OAUTH_GOOGLE_CLIENT_ID)%'
+            $clientSecret: '%env(OAUTH_GOOGLE_CLIENT_SECRET)%'
+
+    Nurschool\OAuth\Provider\FacebookProvider:
+        arguments:
+            $clientId: '%env(OAUTH_FACEBOOK_CLIENT_ID)%'
+            $clientSecret: '%env(OAUTH_FACEBOOK_CLIENT_SECRET)%'
+            $version: '%env(OAUTH_FACEBOOK_VERSION)%'
+
+when@test:
+    services:
+        test.sendgrid_http_client:
+            class: Symfony\Component\HttpClient\MockHttpClient
+            public: true
+            arguments: [[]]
+        sendgrid.http_client: '@test.sendgrid_http_client'
+
+        test.oauth_http_client:
+            class: Symfony\Component\HttpClient\MockHttpClient
+            public: true
+            arguments: [[]]
+        oauth.http_client: '@test.oauth_http_client'

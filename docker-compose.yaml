@@ -1,0 +1,41 @@
+services:
+  nurschool-php:
+    container_name: nurschool-php
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    volumes:
+      - .:/var/www/nurschool:cached,z
+    environment:
+      # Pass the DATABASE_URL variable directly from the .env file to the PHP container.
+      DATABASE_URL: ${DATABASE_URL}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  nurschool-web:
+    container_name: nurschool-web
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/nurschool:cached,z
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - nurschool-php
+
+  nurschool-database:
+    container_name: nurschool-db
+    image: mariadb:11.4
+    environment:
+      # Docker Compose maps these variables from your local .env file.
+      MARIADB_DATABASE: ${DATABASE_NAME}
+      MARIADB_USER: ${DATABASE_USER}
+      MARIADB_PASSWORD: ${DATABASE_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DATABASE_ROOT_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - nurschool-db-data:/var/lib/mysql
+
+volumes:
+  nurschool-db-data:

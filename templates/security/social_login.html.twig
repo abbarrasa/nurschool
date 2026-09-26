@@ -1,0 +1,9 @@
+{% import ui_theme as ui %}
+{% if app.request is null or app.request.attributes.get('_route') != 'nurschool_verify_account' %}
+<div id="social-login-app" class="social-login" data-error="{{ 'oauth.error'|trans }}">
+    <p v-if="error" v-cloak role="alert" class="{{ ui.classes('error') }}" v-text="error"></p>
+    <button type="button" class="{{ ui.classes('secondaryButton') }}" @click="start('google')" :disabled="loading">{{ 'oauth.google'|trans }}</button>
+    <button type="button" class="{{ ui.classes('secondaryButton') }}" @click="start('facebook')" :disabled="loading">{{ 'oauth.facebook'|trans }}</button>
+</div>
+<script type="module" src="/assets/social-login.js"></script>
+{% endif %}
