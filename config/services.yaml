@@ -7,6 +7,12 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    env(OAUTH_GOOGLE_CLIENT_ID): ''
+    env(OAUTH_GOOGLE_CLIENT_SECRET): ''
+    env(OAUTH_FACEBOOK_CLIENT_ID): ''
+    env(OAUTH_FACEBOOK_CLIENT_SECRET): ''
+    env(OAUTH_BASE_URL): 'http://localhost:8080'
+    env(OAUTH_FACEBOOK_VERSION): 'v23.0'
     env(SENDGRID_VERIFICATION_TEMPLATE_ES): ''
     env(SENDGRID_VERIFICATION_TEMPLATE_EN): ''
     env(MAILER_DSN): 'null://null'
@@ -25,6 +31,7 @@ services:
     Nurschool\:
         resource: '../src/'
         exclude:
+            - '../src/OAuth/Provider/ProviderRequest.php'
             - '../src/Mail/SendGrid/Message/'
             - '../src/Mail/SendGrid/Transport/SendGridTransport.php'
             - '../src/Mail/SendGrid/Transport/Exception/'
@@ -50,6 +57,24 @@ services:
             $client: '@sendgrid.http_client'
         tags: ['mailer.transport_factory']
 
+    oauth.http_client: '@http_client'
+
+    Nurschool\OAuth\ProviderClient:
+        arguments:
+            $client: '@oauth.http_client'
+            $baseUrl: '%env(OAUTH_BASE_URL)%'
+
+    Nurschool\OAuth\Provider\GoogleProvider:
+        arguments:
+            $clientId: '%env(OAUTH_GOOGLE_CLIENT_ID)%'
+            $clientSecret: '%env(OAUTH_GOOGLE_CLIENT_SECRET)%'
+
+    Nurschool\OAuth\Provider\FacebookProvider:
+        arguments:
+            $clientId: '%env(OAUTH_FACEBOOK_CLIENT_ID)%'
+            $clientSecret: '%env(OAUTH_FACEBOOK_CLIENT_SECRET)%'
+            $version: '%env(OAUTH_FACEBOOK_VERSION)%'
+
 when@test:
     services:
         test.sendgrid_http_client:
@@ -57,3 +82,9 @@ when@test:
             public: true
             arguments: [[]]
         sendgrid.http_client: '@test.sendgrid_http_client'
+
+        test.oauth_http_client:
+            class: Symfony\Component\HttpClient\MockHttpClient
+            public: true
+            arguments: [[]]
+        oauth.http_client: '@test.oauth_http_client'

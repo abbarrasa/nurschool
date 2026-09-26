@@ -60,5 +60,8 @@
     "registration.verify": "Verify account",
     "registration.verify_help": "Confirm to verify your email address.",
     "registration.email.subject": "Verify your Nurschool account",
-    "registration.email.body": "Open this link to verify your account: %url%\nThe link is valid for an extended period, but can only be used once. If you did not register, ignore this email."
+    "registration.email.body": "Open this link to verify your account: %url%\nThe link is valid for an extended period, but can only be used once. If you did not register, ignore this email.",
+    "oauth.google": "Continue with Google",
+    "oauth.facebook": "Continue with Facebook",
+    "oauth.error": "Social sign-in failed. Try again or use your usual sign-in method."
 }

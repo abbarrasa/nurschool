@@ -33,4 +33,5 @@
     <p v-if="user" v-cloak role="status" class="{{ ui.classes('info') }}">{{ 'login.success'|trans }}</p>
 <a href="{{ path('nurschool_register') }}">{{ 'registration.title'|trans }}</a>
 </section>
+{% include 'security/social_login.html.twig' %}
 {% endblock %}

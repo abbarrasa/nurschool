@@ -60,5 +60,8 @@
     "registration.verify": "Validar cuenta",
     "registration.verify_help": "Confirma para validar tu dirección de correo electrónico.",
     "registration.email.subject": "Valida tu cuenta de Nurschool",
-    "registration.email.body": "Abre este enlace para validar tu cuenta: %url%\nEl enlace tiene una validez prolongada y solo puede utilizarse una vez. Si no te has registrado, ignora este correo."
+    "registration.email.body": "Abre este enlace para validar tu cuenta: %url%\nEl enlace tiene una validez prolongada y solo puede utilizarse una vez. Si no te has registrado, ignora este correo.",
+    "oauth.google": "Continuar con Google",
+    "oauth.facebook": "Continuar con Facebook",
+    "oauth.error": "No se ha podido acceder con la cuenta social. Inténtalo de nuevo o utiliza tu método habitual de acceso."
 }

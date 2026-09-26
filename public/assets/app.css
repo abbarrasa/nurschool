@@ -27,3 +27,6 @@ body { min-height: 100vh; background: #f3f6f8; color: #253d45; }
 
 /* Keep both available registration roles visible in the native multi-select. */
 #registration-app select[multiple] { height: auto; min-height: 5rem; }
+
+.social-login { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; max-width: 28rem; margin: 1rem auto; }
+.social-login [role="alert"] { flex-basis: 100%; }
