@@ -8,7 +8,7 @@ use Nurschool\State\VerificationProcessor;
 #[ApiResource(operations: [new Post(
     uriTemplate: '/account-verifications', formats: ['json' => ['application/json']],
     read: false, deserialize: false, validate: false, output: false,
-    openapi: false, processor: VerificationProcessor::class, name: 'api_verification',
+    processor: VerificationProcessor::class, name: 'api_verification',
 )])]
 final class AccountVerification
 {
