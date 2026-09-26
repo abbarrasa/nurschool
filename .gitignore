@@ -18,10 +18,14 @@
 ###< docker ###
 
 ###> IDE ###
-/.vscode/
+/.vscode/*
 .editorconfig
 ###< IDE ###
 
 ###> PHPUnit ###
 .phpunit.result.cache
 ###< PHPUnit ###
+
+/node_modules/
+/.twig-cs-fixer.cache
+/tests/tooling/__pycache__/

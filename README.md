@@ -720,3 +720,8 @@ repair a database left partially applied by an earlier attempt. Inspect the
 `social_identity` table, its constraints, and Doctrine's version record before
 retrying a failed deployment; preserve existing data and reconcile that specific
 state explicitly. Already recorded migrations are not automatically executed again.
+
+## VS Code development tools
+
+See [VS Code with Docker](docs/vscode.md) for PHP, JavaScript and Twig linting,
+required extensions, and navigation between PHP classes, routes and templates.

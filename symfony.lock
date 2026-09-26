@@ -226,5 +226,8 @@
         "files": [
             "config/packages/validator.yaml"
         ]
+    },
+    "vincentlanglet/twig-cs-fixer": {
+        "version": "4.1.1"
     }
 }
