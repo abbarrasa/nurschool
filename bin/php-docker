@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Run editor PHP commands against the application's existing Compose service.
+set -euo pipefail
+project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+container_root=/var/www/nurschool
+arguments=()
+map_helper_output=false
+for argument in "$@"; do
+    case "$argument" in
+        "$project_root") argument="$container_root" ;;
+        "$project_root"/*) argument="$container_root/${argument#"$project_root"/}" ;;
+        */moetelo.twiggy-*/dist/phpUtils/*.php)
+            # Twiggy ships reflection helpers outside the Docker bind mount.
+            map_helper_output=true
+            helper_directory="$(dirname -- "$argument")"
+            helper_version="$(basename -- "$(dirname -- "$(dirname -- "$helper_directory")")")"
+            destination="var/editor/$helper_version/phpUtils"
+            mkdir -p "$project_root/$destination"
+            cp -- "$helper_directory/"*.php "$project_root/$destination/"
+            argument="$container_root/$destination/$(basename -- "$argument")"
+            ;;
+    esac
+    arguments+=("$argument")
+done
+cd -- "$project_root"
+run_php() {
+    docker compose exec -T --user "$(id -u):$(id -g)" \
+        -e XDEBUG_MODE=off --workdir "$container_root" nurschool-php php "${arguments[@]}"
+}
+if "$map_helper_output"; then
+    # Reflection returns JSON paths that must point to files visible to VS Code.
+    run_php | python3 -c '
+import json, sys
+remote, local = sys.argv[1:]
+def translate(value):
+    if isinstance(value, str):
+        return value.replace(remote, local)
+    if isinstance(value, list):
+        return [translate(item) for item in value]
+    if isinstance(value, dict):
+        return {key: translate(item) for key, item in value.items()}
+    return value
+raw = sys.stdin.read()
+if raw.strip():
+    print(json.dumps(translate(json.loads(raw))))
+' "$container_root" "$project_root"
+else
+    run_php
+fi

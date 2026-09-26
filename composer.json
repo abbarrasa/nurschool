@@ -84,6 +84,7 @@
         "phpstan/phpstan-doctrine": "^2.0",
         "symfony/browser-kit": "7.4.*",
         "symfony/css-selector": "7.4.*",
-        "symfony/phpunit-bridge": "^8.1"
+        "symfony/phpunit-bridge": "^8.1",
+        "vincentlanglet/twig-cs-fixer": "^4.1"
     }
 }
