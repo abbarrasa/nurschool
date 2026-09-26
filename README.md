@@ -689,3 +689,34 @@ To add another network:
 `ProviderRequest` supports provider-specific methods and Symfony HttpClient options,
 including JSON/form bodies, headers, and query parameters. The shared client always
 applies its timeout and redirect safeguards. Credentials and tokens stay server-side.
+
+### MariaDB social identity migration regression
+
+`Version20260926120000` is non-transactional because MariaDB implicitly commits
+`CREATE TABLE`, `ALTER TABLE`, and `DROP TABLE`. Wrapping these statements in a
+Doctrine transaction can leave transaction bookkeeping inconsistent or fail at
+commit after the DDL has already been applied.
+
+`SocialIdentityMigrationTest` runs the real Doctrine `MigrateCommand` on MariaDB
+11.4. It creates the prerequisite user schema using the existing migration, then
+checks dry-run behavior, version tracking, repeated execution, uniqueness, foreign
+keys, cascading deletion, reversal, and reapplication. It also verifies that no
+transaction remains active after either direction. Without
+`SOCIAL_MIGRATION_TEST_HOST`, this integration test is skipped.
+
+Use a disposable database, never the application database. Wait for the health
+check to succeed before running PHPUnit:
+
+```sh
+docker run -d --rm --name nurschool-social-migration-test --network nurschool_default --tmpfs /var/lib/mysql -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1 -e MARIADB_DATABASE=nurschool_migration_test -e MARIADB_USER=migration_test -e MARIADB_PASSWORD=migration_test mariadb:11.4
+docker exec nurschool-social-migration-test healthcheck.sh --connect --innodb_initialized
+docker exec -e SOCIAL_MIGRATION_TEST_HOST=nurschool-social-migration-test nurschool-php php -d xdebug.mode=coverage vendor/bin/simple-phpunit tests/Integration/SocialIdentityMigrationTest.php --coverage-filter migrations --coverage-clover var/social-migration-coverage.xml
+docker exec -e SOCIAL_MIGRATION_TEST_HOST=nurschool-social-migration-test -e MESSENGER_MIGRATION_TEST_HOST=nurschool-social-migration-test nurschool-php php -d xdebug.mode=off vendor/bin/simple-phpunit
+docker stop nurschool-social-migration-test
+```
+
+This change prevents the transactional DDL failure on new executions. It does not
+repair a database left partially applied by an earlier attempt. Inspect the
+`social_identity` table, its constraints, and Doctrine's version record before
+retrying a failed deployment; preserve existing data and reconcile that specific
+state explicitly. Already recorded migrations are not automatically executed again.
