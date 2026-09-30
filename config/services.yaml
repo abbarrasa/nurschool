@@ -7,6 +7,13 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    env(LOCK_DSN): 'flock'
+    env(PASSWORD_RESET_TTL): '3600'
+    env(PASSWORD_RESET_REQUEST_LIMIT): '3'
+    env(PASSWORD_RESET_REQUEST_INTERVAL): '1 hour'
+    env(PASSWORD_RESET_BASE_URL): 'http://localhost:8080'
+    env(SENDGRID_PASSWORD_RESET_TEMPLATE_ES): 'd-94364cdab2c64321b691171c8d4bf420'
+    env(SENDGRID_PASSWORD_RESET_TEMPLATE_EN): 'd-94364cdab2c64321b691171c8d4bf420'
     env(OAUTH_GOOGLE_CLIENT_ID): ''
     env(OAUTH_GOOGLE_CLIENT_SECRET): ''
     env(OAUTH_FACEBOOK_CLIENT_ID): ''
@@ -39,6 +46,9 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
+    Nurschool\Mail\PasswordResetEmailSender:
+        alias: Nurschool\Mail\SendGrid\SendGridPasswordResetEmailSender
+
     Nurschool\Mail\VerificationEmailSender:
         alias: Nurschool\Mail\SendGrid\SendGridVerificationEmailSender
 
@@ -46,6 +56,9 @@ services:
         arguments:
             $defaultLocale: '%kernel.default_locale%'
             $templates:
+                password_reset:
+                    es: '%env(SENDGRID_PASSWORD_RESET_TEMPLATE_ES)%'
+                    en: '%env(SENDGRID_PASSWORD_RESET_TEMPLATE_EN)%'
                 verification:
                     es: '%env(SENDGRID_VERIFICATION_TEMPLATE_ES)%'
                     en: '%env(SENDGRID_VERIFICATION_TEMPLATE_EN)%'

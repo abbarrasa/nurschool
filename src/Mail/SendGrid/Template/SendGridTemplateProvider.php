@@ -10,12 +10,12 @@ final class SendGridTemplateProvider
     {
     }
 
-    public function getTemplateId(string $locale): string
+    public function getTemplateId(string $locale, string $family = 'verification'): string
     {
 
         $shortLocale = strtolower(substr($locale, 0, 2));
 
-        return $this->templates['verification'][$shortLocale] ?? $this->templates['verification'][$this->defaultLocale]
-            ?? throw new \LogicException('The default verification template is not configured.');
+        return $this->templates[$family][$shortLocale] ?? $this->templates[$family][$this->defaultLocale]
+            ?? throw new \LogicException('The default email template is not configured.');
     }
 }

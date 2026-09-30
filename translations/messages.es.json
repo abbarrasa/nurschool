@@ -63,5 +63,21 @@
     "registration.email.body": "Abre este enlace para validar tu cuenta: %url%\nEl enlace tiene una validez prolongada y solo puede utilizarse una vez. Si no te has registrado, ignora este correo.",
     "oauth.google": "Continuar con Google",
     "oauth.facebook": "Continuar con Facebook",
-    "oauth.error": "No se ha podido acceder con la cuenta social. Inténtalo de nuevo o utiliza tu método habitual de acceso."
+    "oauth.error": "No se ha podido acceder con la cuenta social. Inténtalo de nuevo o utiliza tu método habitual de acceso.",
+    "password_reset.title": "Recuperar contraseña",
+    "password_reset.forgot": "¿Has olvidado tu contraseña?",
+    "password_reset.help": "Introduce tu correo para recibir un enlace temporal de recuperación de contraseña.",
+    "password_reset.confirmation": "Confirmar nueva contraseña",
+    "password_reset.request": "Enviar enlace",
+    "password_reset.submit": "Cambiar contraseña",
+    "password_reset.request_again": "Solicitar un nuevo enlace",
+    "password_reset.requested": "Si existe una cuenta con ese correo, recibirás un enlace para cambiar tu contraseña.",
+    "password_reset.success": "Tu contraseña se ha actualizado. Ya puedes iniciar sesión.",
+    "password_reset.mismatch": "Las contraseñas no coinciden.",
+    "password_reset.error": "No se ha podido completar la solicitud. Inténtalo de nuevo.",
+    "password_reset.invalid_email": "Introduce una dirección de correo válida.",
+    "password_reset.invalid_password": "La contraseña debe tener al menos 12 caracteres y como máximo 72 bytes.",
+    "password_reset.invalid_token": "El enlace no es válido, ha caducado o ya se ha utilizado. Solicita un nuevo enlace.",
+    "password_reset.reset_help": "Introduce y confirma tu nueva contraseña. Si el enlace ha caducado, solicita uno nuevo.",
+    "password_reset.throttled": "Has alcanzado el límite de solicitudes de recuperación. Espera antes de volver a intentarlo."
 }

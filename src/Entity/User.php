@@ -11,6 +11,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
+#[ORM\UniqueConstraint(name: 'UNIQ_PASSWORD_RESET_HASH', fields: ['passwordResetHash'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -41,6 +42,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $verificationExpiresAt = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $passwordResetHash = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $passwordResetExpiresAt = null;
+
+    public function requirePasswordReset(string $hash, \DateTimeImmutable $expiresAt): void
+    {
+        $this->passwordResetHash = $hash;
+        $this->passwordResetExpiresAt = $expiresAt;
+    }
 
     public function isVerified(): bool
     {

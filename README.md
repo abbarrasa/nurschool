@@ -725,3 +725,50 @@ state explicitly. Already recorded migrations are not automatically executed aga
 
 See [VS Code with Docker](docs/vscode.md) for PHP, JavaScript and Twig linting,
 required extensions, and navigation between PHP classes, routes and templates.
+
+## Password recovery
+
+The login page links to `/forgot-password`. `POST /api/password-reset-requests`
+accepts a JSON `email` and returns the same HTTP 202 message for existing and
+unknown accounts. Existing accounts receive a queued SendGrid email linking to
+`/reset-password?_locale=es#<token>`. The token is removed from the address bar and
+submitted with the new password to `POST /api/password-resets`.
+
+Tokens expire after `PASSWORD_RESET_TTL` seconds (3,600 by default), are stored
+only as SHA-256 hashes, and are consumed atomically with the password update. A new request
+invalidates the previous link. Passwords follow the existing 12-character minimum
+and 72-byte maximum. Resetting a password does not verify an unverified account.
+
+Before deployment, apply `Version20260930120000` and configure
+`PASSWORD_RESET_BASE_URL` to the public HTTPS origin. Both
+`SENDGRID_PASSWORD_RESET_TEMPLATE_ES` and `SENDGRID_PASSWORD_RESET_TEMPLATE_EN`
+default to `d-94364cdab2c64321b691171c8d4bf420`. The template receives `url`, `ttl`
+(in seconds), and `locale`; its subject and body remain managed in SendGrid.
+Verify that the published template uses these variable names. The existing
+SendGrid transport, verified sender, and Messenger consumer must be configured.
+Queued delivery delays do not extend the token lifetime. `PASSWORD_RESET_TTL`
+must be a positive integer; the same configured lifetime is sent to the template.
+Changing it affects new links; existing tokens retain their stored expiry.
+The UI describes a temporary link so it remains accurate when the lifetime changes.
+
+Recovery requests are limited per normalized email address, including unknown
+accounts. `PASSWORD_RESET_REQUEST_LIMIT` defaults to `3`, and
+`PASSWORD_RESET_REQUEST_INTERVAL` defaults to `1 hour`. The limit must be a
+positive integer. A fixed window starts with
+the first request. Requests beyond the limit return a translated HTTP 429 response
+with `Retry-After`, without replacing the token or enqueueing another email.
+Rejected requests do not extend the window. Different emails have separate quotas.
+Valid requests consume quota even if subsequent email enqueueing fails.
+
+Symfony RateLimiter uses the dedicated filesystem pool
+`cache.password_reset_requests` and a `flock` lock factory, so counters survive
+separate HTTP requests and are protected against concurrent consumption on one
+host. Multiple application hosts must use a shared cache pool and lock store.
+Clearing this cache pool resets its counters. The request limit and token lifetime
+are independent settings.
+
+Tests replace template identifiers and never contact SendGrid. Set
+`PASSWORD_RESET_MIGRATION_TEST_HOST` to a disposable MariaDB 11.4 database with
+`migration_test` credentials and the database name `nurschool_migration_test` to
+run the real migration/reversal test. Boundary and concurrent-consumption tests
+use a disposable SQLite database.

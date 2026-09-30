@@ -2,6 +2,8 @@
 
 namespace Nurschool\EventSubscriber;
 
+use Nurschool\PasswordReset\InvalidPasswordException;
+
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -34,6 +36,15 @@ final readonly class LocalizedErrorSubscriber implements EventSubscriberInterfac
         }
         if ($request->attributes->get('_route') === 'api_verification' && $status === 422) {
             $key = 'registration.invalid_token';
+        }
+        if ($request->attributes->get('_route') === 'api_password_reset_requests' && $status === 429) {
+            $key = 'password_reset.throttled';
+        }
+        if ($request->attributes->get('_route') === 'api_password_reset_requests' && $status === 422) {
+            $key = 'password_reset.invalid_email';
+        }
+        if ($request->attributes->get('_route') === 'api_password_resets' && $status === 422) {
+            $key = $exception instanceof InvalidPasswordException ? 'password_reset.invalid_password' : 'password_reset.invalid_token';
         }
         $message = $this->translator->trans($key, locale: $request->getLocale());
         if (str_starts_with($request->getPathInfo(), '/api/')) {

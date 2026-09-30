@@ -40,3 +40,10 @@ At completion, state exactly:
 - PHPStan command and result;
 - Remaining limitations or failures; and
 - Confirmation that no commit or push was performed.
+
+---
+
+## 3. IMPACT AND MEMORY UPDATE
+
+Instructions for completing a task:
+- After successfully completing a task, the agent **must record** the implemented functionality and any newly introduced technical debt in `MEMORY.md`.

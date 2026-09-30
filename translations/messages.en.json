@@ -63,5 +63,21 @@
     "registration.email.body": "Open this link to verify your account: %url%\nThe link is valid for an extended period, but can only be used once. If you did not register, ignore this email.",
     "oauth.google": "Continue with Google",
     "oauth.facebook": "Continue with Facebook",
-    "oauth.error": "Social sign-in failed. Try again or use your usual sign-in method."
+    "oauth.error": "Social sign-in failed. Try again or use your usual sign-in method.",
+    "password_reset.title": "Reset password",
+    "password_reset.forgot": "Forgot your password?",
+    "password_reset.help": "Enter your email to receive a temporary password reset link.",
+    "password_reset.confirmation": "Confirm new password",
+    "password_reset.request": "Send link",
+    "password_reset.submit": "Change password",
+    "password_reset.request_again": "Request a new link",
+    "password_reset.requested": "If an account exists with that email, you will receive a link to reset your password.",
+    "password_reset.success": "Your password has been updated. You can now sign in.",
+    "password_reset.mismatch": "The passwords do not match.",
+    "password_reset.error": "Unable to complete the request. Please try again.",
+    "password_reset.invalid_email": "Enter a valid email address.",
+    "password_reset.invalid_password": "The password must contain at least 12 characters and at most 72 bytes.",
+    "password_reset.invalid_token": "The link is invalid, expired, or already used. Request a new link.",
+    "password_reset.reset_help": "Enter and confirm your new password. If the link has expired, request a new one.",
+    "password_reset.throttled": "You have reached the password reset request limit. Please wait before trying again."
 }
