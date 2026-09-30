@@ -760,6 +760,15 @@ with `Retry-After`, without replacing the token or enqueueing another email.
 Rejected requests do not extend the window. Different emails have separate quotas.
 Valid requests consume quota even if subsequent email enqueueing fails.
 
+Template validation, queue insertion, or encryption failures roll back the reset
+token and email transaction. The API still returns the same generic HTTP 202
+response for registered and unknown emails, preventing delivery outages from
+revealing account existence. An existing reset link remains valid, and failed
+attempts still consume request quota. Server-side error logs record the exception
+class without recipients, tokens, payloads, exception messages, or traces.
+Monitor these logs: HTTP 202 acknowledges a request and does not guarantee email
+delivery. Response timing is not normalized.
+
 Symfony RateLimiter uses the dedicated filesystem pool
 `cache.password_reset_requests` and a `flock` lock factory, so counters survive
 separate HTTP requests and are protected against concurrent consumption on one

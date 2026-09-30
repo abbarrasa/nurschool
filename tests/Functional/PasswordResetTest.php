@@ -128,13 +128,49 @@ final class PasswordResetTest extends WebTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testEnqueueFailureRollsBackToken(): void
+    /** @dataProvider deliveryFailures */
+    public function testDeliveryFailureRollsBackTokenAndKeepsResponseGeneric(string $failure): void
     {
+        $this->requestToken();
         $connection = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
-        $connection->executeStatement('DROP TABLE messenger_messages');
-        $this->browser->jsonRequest('POST', '/api/password-reset-requests', ['email' => 'ana@example.com']);
-        self::assertResponseStatusCodeSame(500);
-        self::assertNull(self::getContainer()->get(EntityManagerInterface::class)->getConnection()->fetchOne('SELECT password_reset_hash FROM user'));
+        $before = $connection->fetchAssociative('SELECT password_reset_hash, password_reset_expires_at, password FROM user');
+        $previousKey = $_SERVER['QUEUE_ENCRYPTION_KEY'];
+        $previousTemplate = $_SERVER['SENDGRID_PASSWORD_RESET_TEMPLATE_EN'];
+        try {
+            if ($failure === 'queue') {
+                $connection->executeStatement('DROP TABLE messenger_messages');
+            } elseif ($failure === 'template') {
+                $_SERVER['SENDGRID_PASSWORD_RESET_TEMPLATE_EN'] = $_ENV['SENDGRID_PASSWORD_RESET_TEMPLATE_EN'] = 'invalid-template';
+            } else {
+                $_SERVER['QUEUE_ENCRYPTION_KEY'] = $_ENV['QUEUE_ENCRYPTION_KEY'] = 'invalid-key';
+            }
+            $this->browser->jsonRequest('POST', '/api/password-reset-requests?_locale=en', ['email' => 'unknown@example.com']);
+            self::assertResponseStatusCodeSame(202);
+            $generic = $this->browser->getResponse()->getContent();
+            for ($attempt = 0; $attempt < 2; ++$attempt) {
+                $this->browser->jsonRequest('POST', '/api/password-reset-requests?_locale=en', ['email' => 'ana@example.com']);
+                self::assertResponseStatusCodeSame(202);
+                self::assertSame($generic, $this->browser->getResponse()->getContent());
+                self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+                $connection = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
+                self::assertSame($before, $connection->fetchAssociative('SELECT password_reset_hash, password_reset_expires_at, password FROM user'));
+                if ($failure !== 'queue') {
+                    self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM messenger_messages'));
+                }
+            }
+            $this->browser->jsonRequest('POST', '/api/password-reset-requests', ['email' => 'ana@example.com']);
+            self::assertResponseStatusCodeSame(429);
+        } finally {
+            $_SERVER['QUEUE_ENCRYPTION_KEY'] = $_ENV['QUEUE_ENCRYPTION_KEY'] = $previousKey;
+            $_SERVER['SENDGRID_PASSWORD_RESET_TEMPLATE_EN'] = $_ENV['SENDGRID_PASSWORD_RESET_TEMPLATE_EN'] = $previousTemplate;
+        }
+    }
+
+    public static function deliveryFailures(): iterable
+    {
+        yield 'queue insertion' => ['queue'];
+        yield 'template validation' => ['template'];
+        yield 'payload encryption' => ['encryption'];
     }
 
     public function testEnvironmentConfiguresLimitAndLifetime(): void

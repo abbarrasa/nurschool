@@ -35,7 +35,7 @@ final class PasswordResetServiceTest extends TestCase
             self::assertEquals($clock->now()->modify('+'.$ttl.' seconds'), $expiry->getValue($user));
             return true;
         }), 'en');
-        $service = new PasswordResetService($clock, new PasswordResetPolicy($ttl), new RateLimiterFactory(['id' => 'reset', 'policy' => 'fixed_window', 'limit' => 3, 'interval' => '1 hour'], new InMemoryStorage()), $em, $users, $this->createMock(UserPasswordHasherInterface::class), new SuperAdminCredentialsValidator(), $sender);
+        $service = new PasswordResetService($clock, new PasswordResetPolicy($ttl), new RateLimiterFactory(['id' => 'reset', 'policy' => 'fixed_window', 'limit' => 3, 'interval' => '1 hour'], new InMemoryStorage()), $em, $users, $this->createMock(UserPasswordHasherInterface::class), new SuperAdminCredentialsValidator(), $sender, new \Psr\Log\NullLogger());
         $service->request(['email' => ' ANA@example.com '], 'en');
     }
     public static function lifetimes(): iterable
@@ -43,6 +43,36 @@ final class PasswordResetServiceTest extends TestCase
         yield 'default one hour' => [3600];
         yield 'fifteen minutes' => [900];
         yield 'two hours' => [7200];
+    }
+
+    public function testDeliveryFailureIsLoggedAfterRollbackWithoutSensitiveContext(): void
+    {
+        $user = (new User())->setEmail('ana@example.com');
+        $users = $this->createMock(UserRepository::class);
+        $users->method('findOneBy')->willReturn($user);
+        $rolledBack = false;
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::once())->method('wrapInTransaction')->willReturnCallback(static function (callable $operation) use (&$rolledBack): void {
+            try {
+                $operation();
+            } catch (\Throwable $exception) {
+                $rolledBack = true;
+                throw $exception;
+            }
+        });
+        $sender = $this->createMock(PasswordResetEmailSender::class);
+        $sender->expects(self::once())->method('send')->willThrowException(new \RuntimeException('secret-token ana@example.com sensitive-payload'));
+        $logger = $this->createMock(\Psr\Log\LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            'Password reset delivery failed; the transaction was rolled back.',
+            self::callback(static function (array $context) use (&$rolledBack): bool {
+                self::assertTrue($rolledBack);
+                self::assertSame(['failure_type' => \RuntimeException::class], $context);
+                return true;
+            }),
+        );
+        $service = new PasswordResetService(new MockClock(), new PasswordResetPolicy(3600), new RateLimiterFactory(['id' => 'reset', 'policy' => 'fixed_window', 'limit' => 3, 'interval' => '1 hour'], new InMemoryStorage()), $em, $users, $this->createMock(UserPasswordHasherInterface::class), new SuperAdminCredentialsValidator(), $sender, $logger);
+        $service->request(['email' => 'ana@example.com'], 'en');
     }
 
     public function testCustomLimitAppliesToUnknownEmailsAndResetsAfterWindow(): void
@@ -56,7 +86,7 @@ final class PasswordResetServiceTest extends TestCase
         $sender->expects(self::never())->method('send');
         $storage = new InMemoryStorage();
         $limiter = new RateLimiterFactory(['id' => 'reset', 'policy' => 'fixed_window', 'limit' => 2, 'interval' => '1 hour'], $storage);
-        $service = new PasswordResetService($clock, new PasswordResetPolicy(900), $limiter, $em, $users, $this->createMock(UserPasswordHasherInterface::class), new SuperAdminCredentialsValidator(), $sender);
+        $service = new PasswordResetService($clock, new PasswordResetPolicy(900), $limiter, $em, $users, $this->createMock(UserPasswordHasherInterface::class), new SuperAdminCredentialsValidator(), $sender, new \Psr\Log\NullLogger());
         $service->request(['email' => 'unknown@example.com'], 'en');
         $service->request(['email' => ' UNKNOWN@example.com '], 'en');
         try {

@@ -7,6 +7,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Nurschool\Mail\PasswordResetEmailSender;
 use Nurschool\Repository\UserRepository;
 use Nurschool\Validation\SuperAdminCredentialsValidator;
@@ -24,6 +25,7 @@ final readonly class PasswordResetService
         private UserPasswordHasherInterface $hasher,
         private SuperAdminCredentialsValidator $credentials,
         private PasswordResetEmailSender $sender,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -48,10 +50,18 @@ final readonly class PasswordResetService
         $token = bin2hex(random_bytes(32));
         $user->requirePasswordReset(hash('sha256', $token), $this->clock->now()->modify('+'.$this->policy->ttl.' seconds'));
         // The reset token and Doctrine email queue share one transaction.
-        $this->em->wrapInTransaction(function () use ($email, $token, $locale): void {
-            $this->em->flush();
-            $this->sender->send($email, $token, $locale);
-        });
+        try {
+            $this->em->wrapInTransaction(function () use ($email, $token, $locale): void {
+                $this->em->flush();
+                $this->sender->send($email, $token, $locale);
+            });
+        } catch (\Throwable $exception) {
+            // Doctrine rolls back before rethrowing. Keep delivery outages from revealing accounts.
+            // Exception messages and traces can contain recipients, tokens or serialized payloads.
+            $this->logger->error('Password reset delivery failed; the transaction was rolled back.', [
+                'failure_type' => $exception::class,
+            ]);
+        }
     }
 
     /** @param array<string, mixed> $payload */
