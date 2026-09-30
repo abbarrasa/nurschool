@@ -735,7 +735,7 @@ unknown accounts. Existing accounts receive a queued SendGrid email linking to
 submitted with the new password to `POST /api/password-resets`.
 
 Tokens expire after `PASSWORD_RESET_TTL` seconds (3,600 by default), are stored
-only as SHA-256 hashes, and are consumed atomically with the password update. A new request
+only as SHA-256 hashes in user records, and are consumed atomically with the password update. A new request
 invalidates the previous link. Passwords follow the existing 12-character minimum
 and 72-byte maximum. Resetting a password does not verify an unverified account.
 
@@ -772,3 +772,58 @@ Tests replace template identifiers and never contact SendGrid. Set
 `migration_test` credentials and the database name `nurschool_migration_test` to
 run the real migration/reversal test. Boundary and concurrent-consumption tests
 use a disposable SQLite database.
+
+## Password reset submission limits
+
+Password changes at `POST /api/password-resets` have a separate sliding-window
+limit per client IP: `PASSWORD_RESET_SUBMISSION_LIMIT` defaults to `10` and
+`PASSWORD_RESET_SUBMISSION_INTERVAL` defaults to `15 minutes`. Invalid tokens,
+passwords, and malformed JSON consume quota before parsing or password hashing.
+Blocked attempts receive translated HTTP 429 with `Retry-After`; they do not
+consume the reset token or change the password. Requests without a client IP
+are rejected with HTTP 429. The email-request quota remains independent.
+
+The dedicated filesystem pool `cache.password_reset_submissions` and `flock`
+lock provide persistent, concurrent-safe counters on one host. Multiple hosts
+need shared cache and lock storage. Clients behind a shared IP share the quota.
+Symfony obtains the address through `Request::getClientIp()`: configure
+`framework.trusted_proxies` and `framework.trusted_headers` for the actual proxy
+deployment, without trusting arbitrary client-supplied forwarded headers. Add
+a limit at the reverse proxy or load balancer to reject high-volume traffic
+before PHP. Clearing the dedicated cache pool resets submission counters.
+
+## Encrypted email queues
+
+Both Doctrine transports (`sendgrid` and `failed`) use
+`EncryptedQueueSerializer`. `PayloadCipher` applies authenticated AES-256-GCM
+with a fresh 12-byte nonce and a 16-byte authentication tag to the serialized
+message and headers. Only versioned ciphertext and empty headers are stored in
+`messenger_messages`; recipients, URL tokens, and retry/failure metadata are
+inside the encrypted payload. The worker authenticates and decrypts bytes before
+PHP deserialization, then sends the original template data to SendGrid. It
+rejects tampered, wrong-key, unsupported-version, and plaintext payloads.
+Password-reset links and hash-based token validation remain unchanged.
+
+Set `QUEUE_ENCRYPTION_KEY` to a base64-encoded random 32-byte key, for example:
+
+```sh
+php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
+```
+
+Use the same key for web producers, queue consumers, failure-queue commands, and
+all application hosts. Keep it in a secret manager or an ignored local environment
+file, outside source control and database backups. There is no default production
+key; an absent or invalid key prevents queue use. Automated tests use a dedicated
+test-only key. OpenSSL is required and declared in Composer.
+
+Before starting upgraded workers, stop producers and consumers and run
+`php bin/console app:queue:encrypt-existing`. The command encrypts existing
+`sendgrid` and `failed` rows without deserializing objects, preserves message IDs,
+queue names and timestamps, runs atomically, and can be rerun safely. Back up the
+key separately, then restart producers and workers. Do not replace the key while
+messages encrypted with it remain in either queue; this version has one active
+key and requires draining both queues before key rotation.
+
+This protects newly written and migrated queue rows. Previously created database
+backups still contain their historical plaintext tokens and must be handled
+separately; encrypting current rows cannot rewrite those backups.

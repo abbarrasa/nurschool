@@ -46,6 +46,9 @@ final readonly class LocalizedErrorSubscriber implements EventSubscriberInterfac
         if ($request->attributes->get('_route') === 'api_password_resets' && $status === 422) {
             $key = $exception instanceof InvalidPasswordException ? 'password_reset.invalid_password' : 'password_reset.invalid_token';
         }
+        if ($request->attributes->get('_route') === 'api_password_resets' && $status === 429) {
+            $key = 'password_reset.submissions_throttled';
+        }
         $message = $this->translator->trans($key, locale: $request->getLocale());
         if (str_starts_with($request->getPathInfo(), '/api/')) {
             $event->setResponse(new JsonResponse(['message' => $message], $status, $headers));

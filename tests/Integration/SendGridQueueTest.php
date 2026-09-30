@@ -38,6 +38,19 @@ final class SendGridQueueTest extends KernelTestCase
         ))->from('school@example.com')->to('ana@example.com'));
     }
 
+    private function assertEncryptedStorage(): void
+    {
+        $rows = $this->connection->fetchAllAssociative('SELECT body, headers FROM messenger_messages');
+        self::assertNotEmpty($rows);
+        foreach ($rows as $row) {
+            self::assertStringStartsWith('v1:', $row['body']);
+            self::assertStringNotContainsString('https://school.example/#token', $row['body'].$row['headers']);
+            self::assertStringNotContainsString('ana@example.com', $row['body'].$row['headers']);
+            self::assertStringNotContainsString('dynamic_template_data', $row['body'].$row['headers']);
+            self::assertSame([], json_decode($row['headers'], true, flags: JSON_THROW_ON_ERROR));
+        }
+    }
+
     private function consume(): void
     {
         $dispatcher = self::getContainer()->get('event_dispatcher');
@@ -53,7 +66,13 @@ final class SendGridQueueTest extends KernelTestCase
 
     private function fakeHttp(int $status): MockHttpClient
     {
-        $http = new MockHttpClient(static fn () => new MockResponse('', ['http_code' => $status]));
+        $http = new MockHttpClient(static function (string $method, string $url, array $options) use ($status): MockResponse {
+            self::assertSame('POST', $method);
+            self::assertSame('https://api.sendgrid.com/v3/mail/send', $url);
+            $payload = json_decode($options['body'], true, flags: JSON_THROW_ON_ERROR);
+            self::assertSame(['url' => 'https://school.example/#token'], $payload['personalizations'][0]['dynamic_template_data']);
+            return new MockResponse('', ['http_code' => $status]);
+        });
         self::getContainer()->set('test.sendgrid_http_client', $http);
         return $http;
     }
@@ -71,6 +90,7 @@ final class SendGridQueueTest extends KernelTestCase
             $sent[] = $event;
         });
         $this->queue();
+        $this->assertEncryptedStorage();
         self::assertSame([true], $events);
         $queued = iterator_to_array(self::getContainer()->get('messenger.transport.sendgrid')->all(), false)[0]->getMessage();
         self::assertInstanceOf(SendEmailMessage::class, $queued);
@@ -95,6 +115,7 @@ final class SendGridQueueTest extends KernelTestCase
     {
         $this->connection->beginTransaction();
         $this->queue();
+        $this->assertEncryptedStorage();
         self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM messenger_messages'));
         $this->connection->rollBack();
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM messenger_messages'));
@@ -108,11 +129,13 @@ final class SendGridQueueTest extends KernelTestCase
             $failures[] = $event;
         });
         $this->queue();
+        $this->assertEncryptedStorage();
         $this->consume();
         self::assertSame(1, $http->getRequestsCount());
         self::assertCount(1, $failures);
         self::assertInstanceOf(\Symfony\Component\Mailer\Exception\TransportExceptionInterface::class, $failures[0]->getError());
         self::assertSame('failed', $this->connection->fetchOne('SELECT queue_name FROM messenger_messages'));
+        $this->assertEncryptedStorage();
         self::assertSame(1, self::getContainer()->get('messenger.transport.failed')->getMessageCount());
     }
 
@@ -120,11 +143,13 @@ final class SendGridQueueTest extends KernelTestCase
     {
         $http = $this->fakeHttp(503);
         $this->queue();
+        $this->assertEncryptedStorage();
         for ($attempt = 1; $attempt <= 4; ++$attempt) {
             $this->connection->executeStatement("UPDATE messenger_messages SET available_at = '2000-01-01 00:00:00'");
             $this->consume();
             self::assertSame($attempt, $http->getRequestsCount());
             self::assertSame($attempt === 4 ? 'failed' : 'sendgrid', $this->connection->fetchOne('SELECT queue_name FROM messenger_messages'));
+            $this->assertEncryptedStorage();
             if ($attempt < 4) {
                 $this->connection->executeStatement("UPDATE messenger_messages SET available_at = '2000-01-01 00:00:00'");
                 $envelope = iterator_to_array(self::getContainer()->get('messenger.transport.sendgrid')->all(), false)[0];

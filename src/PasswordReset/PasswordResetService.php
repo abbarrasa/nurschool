@@ -7,7 +7,6 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Doctrine\ORM\EntityManagerInterface;
-use Nurschool\Entity\User;
 use Nurschool\Mail\PasswordResetEmailSender;
 use Nurschool\Repository\UserRepository;
 use Nurschool\Validation\SuperAdminCredentialsValidator;
@@ -67,9 +66,15 @@ final readonly class PasswordResetService
         if (!is_string($token) || !preg_match('/^[a-f0-9]{64}$/D', $token)) {
             throw new UnprocessableEntityHttpException('Invalid password reset token.');
         }
-        $hash = $this->hasher->hashPassword(new User(), $password);
-        if ($this->users->consumePasswordResetToken($token, $hash, $this->clock->now()) !== 1) {
+        $user = $this->users->findUserByPasswordResetToken($token, $this->clock->now());
+        if (null === $user) {
             throw new UnprocessableEntityHttpException('Password reset token is expired or consumed.');
         }
+        $passwordHashed = $this->hasher->hashPassword($user, $password);
+        if ($this->users->consumePasswordResetToken($token, $passwordHashed, $this->clock->now()) !== 1) {
+            throw new UnprocessableEntityHttpException('Password reset token is expired or consumed.');
+        }
+        // The conditional update bypasses Doctrine's managed entity state.
+        $this->em->refresh($user);
     }
 }

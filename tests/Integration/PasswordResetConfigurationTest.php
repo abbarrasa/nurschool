@@ -7,10 +7,11 @@ use Symfony\Component\Lock\LockFactory;
 
 final class PasswordResetConfigurationTest extends KernelTestCase
 {
-    public function testNamedResetLockFactoryCanAcquireAndReleaseLock(): void
+    /** @dataProvider lockResources */
+    public function testNamedResetLockFactoryCanAcquireAndReleaseLock(string $resource): void
     {
         self::bootKernel();
-        $factory = self::getContainer()->get('lock.password_reset_requests.factory');
+        $factory = self::getContainer()->get('lock.'.$resource.'.factory');
         self::assertInstanceOf(LockFactory::class, $factory);
         $lock = $factory->createLock('password-reset-configuration-test');
         try {
@@ -19,5 +20,11 @@ final class PasswordResetConfigurationTest extends KernelTestCase
             $lock->release();
         }
         self::assertFalse($lock->isAcquired());
+    }
+
+    public static function lockResources(): iterable
+    {
+        yield 'email requests' => ['password_reset_requests'];
+        yield 'IP submissions' => ['password_reset_submissions'];
     }
 }

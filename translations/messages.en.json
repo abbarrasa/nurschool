@@ -79,5 +79,6 @@
     "password_reset.invalid_password": "The password must contain at least 12 characters and at most 72 bytes.",
     "password_reset.invalid_token": "The link is invalid, expired, or already used. Request a new link.",
     "password_reset.reset_help": "Enter and confirm your new password. If the link has expired, request a new one.",
-    "password_reset.throttled": "You have reached the password reset request limit. Please wait before trying again."
+    "password_reset.throttled": "You have reached the password reset request limit. Please wait before trying again.",
+    "password_reset.submissions_throttled": "Too many password change attempts from this address. Please wait before trying again."
 }

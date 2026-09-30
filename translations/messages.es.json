@@ -79,5 +79,6 @@
     "password_reset.invalid_password": "La contraseña debe tener al menos 12 caracteres y como máximo 72 bytes.",
     "password_reset.invalid_token": "El enlace no es válido, ha caducado o ya se ha utilizado. Solicita un nuevo enlace.",
     "password_reset.reset_help": "Introduce y confirma tu nueva contraseña. Si el enlace ha caducado, solicita uno nuevo.",
-    "password_reset.throttled": "Has alcanzado el límite de solicitudes de recuperación. Espera antes de volver a intentarlo."
+    "password_reset.throttled": "Has alcanzado el límite de solicitudes de recuperación. Espera antes de volver a intentarlo.",
+    "password_reset.submissions_throttled": "Demasiados intentos de cambio de contraseña desde esta dirección. Espera antes de volver a intentarlo."
 }

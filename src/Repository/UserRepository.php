@@ -33,14 +33,26 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->getEntityManager()->flush();
     }
 
-
-    public function consumePasswordResetToken(string $token, string $passwordHash, \DateTimeImmutable $now): int
+    public function findUserByPasswordResetToken(#[\SensitiveParameter] string $token, \DateTimeImmutable $now): ?User
     {
-        // Updating the password and consuming the token together prevents concurrent reuse.
+        return $this->createQueryBuilder('u')
+            ->where('u.passwordResetHash = :hash')
+            ->andWhere('u.passwordResetExpiresAt > :now')
+            ->setParameter('hash', hash('sha256', $token))
+            ->setParameter('now', $now)
+            ->getQuery()
+            ->getOneOrNullResult()
+        ;
+    }
+
+    /** Consume the token and update the password atomically to prevent concurrent reuse. */
+    public function consumePasswordResetToken(#[\SensitiveParameter] string $token, string $passwordHash, \DateTimeImmutable $now): int
+    {
         return $this->getEntityManager()->createQuery('UPDATE Nurschool\\Entity\\User u SET u.password = :password, u.passwordResetHash = NULL, u.passwordResetExpiresAt = NULL WHERE u.passwordResetHash = :hash AND u.passwordResetExpiresAt > :now')
             ->setParameter('password', $passwordHash)
             ->setParameter('hash', hash('sha256', $token))
-            ->setParameter('now', $now)->execute();
+            ->setParameter('now', $now)
+            ->execute();
     }
 
     public function consumeVerificationToken(string $token): int

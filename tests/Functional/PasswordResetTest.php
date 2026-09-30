@@ -17,6 +17,7 @@ final class PasswordResetTest extends WebTestCase
     {
         $this->browser = self::createClient();
         self::getContainer()->get('cache.password_reset_requests')->clear();
+        self::getContainer()->get('cache.password_reset_submissions')->clear();
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertSame('pdo_sqlite', $em->getConnection()->getParams()['driver']);
         $metadata = $em->getMetadataFactory()->getAllMetadata();
@@ -46,7 +47,14 @@ final class PasswordResetTest extends WebTestCase
         self::assertSame('ana@example.com', $email->getTo()[0]->getAddress());
         self::assertStringContainsString('/reset-password?_locale='.$locale.'#', $email->getTemplateData()['url']);
         self::assertSame(1, preg_match('/#([a-f0-9]{64})$/', $email->getTemplateData()['url'], $matches));
-        return $matches[1];
+        $token = $matches[1];
+        $rows = self::getContainer()->get(EntityManagerInterface::class)->getConnection()->fetchAllAssociative('SELECT body, headers FROM messenger_messages');
+        foreach ($rows as $row) {
+            self::assertStringStartsWith('v1:', $row['body']);
+            self::assertStringNotContainsString($token, $row['body'].$row['headers']);
+            self::assertStringNotContainsString('ana@example.com', $row['body'].$row['headers']);
+        }
+        return $token;
     }
 
     public function testResetChangesLoginPasswordAndCannotBeReused(): void
@@ -168,6 +176,62 @@ final class PasswordResetTest extends WebTestCase
             self::assertSame(3, self::getContainer()->get('messenger.transport.sendgrid')->getMessageCount());
             self::assertSame($hash, self::getContainer()->get(EntityManagerInterface::class)->getConnection()->fetchOne('SELECT password_reset_hash FROM user'));
         }
+    }
+
+    public function testResetSubmissionsAreLimitedPerIpBeforeConsumingValidToken(): void
+    {
+        $token = $this->requestToken();
+        for ($attempt = 0; $attempt < 10; ++$attempt) {
+            $this->browser->jsonRequest('POST', '/api/password-resets', ['token' => str_repeat('a', 64), 'password' => 'replacement-password'], ['REMOTE_ADDR' => '192.0.2.1']);
+            self::assertResponseStatusCodeSame(422);
+        }
+        foreach (['en' => 'Too many password change attempts', 'es' => 'Demasiados intentos de cambio'] as $locale => $message) {
+            $this->browser->jsonRequest('POST', '/api/password-resets?_locale='.$locale, ['token' => $token, 'password' => 'replacement-password'], ['REMOTE_ADDR' => '192.0.2.1', 'HTTP_X_FORWARDED_FOR' => '192.0.2.99']);
+            self::assertResponseStatusCodeSame(429);
+            self::assertStringContainsString($message, $this->browser->getResponse()->getContent());
+            self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+            self::assertGreaterThan(0, (int) $this->browser->getResponse()->headers->get('Retry-After'));
+        }
+        $connection = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
+        self::assertSame(hash('sha256', $token), $connection->fetchOne('SELECT password_reset_hash FROM user'));
+        self::assertTrue(password_verify('original-password', $connection->fetchOne('SELECT password FROM user')));
+        $this->browser->jsonRequest('POST', '/api/password-resets', ['token' => $token, 'password' => 'replacement-password'], ['REMOTE_ADDR' => '2001:db8::1']);
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    public function testSubmissionLimitAndIntervalCanBeConfigured(): void
+    {
+        $previousLimit = $_SERVER['PASSWORD_RESET_SUBMISSION_LIMIT'];
+        $previousInterval = $_SERVER['PASSWORD_RESET_SUBMISSION_INTERVAL'];
+        try {
+            $_SERVER['PASSWORD_RESET_SUBMISSION_LIMIT'] = $_ENV['PASSWORD_RESET_SUBMISSION_LIMIT'] = '2';
+            $_SERVER['PASSWORD_RESET_SUBMISSION_INTERVAL'] = $_ENV['PASSWORD_RESET_SUBMISSION_INTERVAL'] = '30 minutes';
+            self::ensureKernelShutdown();
+            $this->browser = self::createClient();
+            for ($attempt = 0; $attempt < 2; ++$attempt) {
+                $this->browser->request('POST', '/api/password-resets', server: ['REMOTE_ADDR' => '192.0.2.2', 'CONTENT_TYPE' => 'application/json'], content: '{');
+                self::assertResponseStatusCodeSame(400);
+            }
+            $this->browser->jsonRequest('POST', '/api/password-resets', ['token' => str_repeat('a', 64), 'password' => 'replacement-password'], ['REMOTE_ADDR' => '192.0.2.2']);
+            self::assertResponseStatusCodeSame(429);
+            // Sliding windows estimate when one submission becomes available again.
+            self::assertGreaterThan(600, (int) $this->browser->getResponse()->headers->get('Retry-After'));
+            // The email quota is independent of password-change submissions.
+            $this->requestToken();
+        } finally {
+            $_SERVER['PASSWORD_RESET_SUBMISSION_LIMIT'] = $_ENV['PASSWORD_RESET_SUBMISSION_LIMIT'] = $previousLimit;
+            $_SERVER['PASSWORD_RESET_SUBMISSION_INTERVAL'] = $_ENV['PASSWORD_RESET_SUBMISSION_INTERVAL'] = $previousInterval;
+            self::ensureKernelShutdown();
+        }
+    }
+
+    public function testMissingClientIpRejectsResetWithoutConsumingToken(): void
+    {
+        $token = $this->requestToken();
+        $this->browser->jsonRequest('POST', '/api/password-resets', ['token' => $token, 'password' => 'replacement-password'], ['REMOTE_ADDR' => null]);
+        self::assertResponseStatusCodeSame(429);
+        self::assertResponseHeaderSame('Retry-After', '60');
+        self::assertSame(hash('sha256', $token), self::getContainer()->get(EntityManagerInterface::class)->getConnection()->fetchOne('SELECT password_reset_hash FROM user'));
     }
 
     public function testPagesAndRequestValidation(): void
