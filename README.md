@@ -725,3 +725,114 @@ state explicitly. Already recorded migrations are not automatically executed aga
 
 See [VS Code with Docker](docs/vscode.md) for PHP, JavaScript and Twig linting,
 required extensions, and navigation between PHP classes, routes and templates.
+
+## Password recovery
+
+The login page links to `/forgot-password`. `POST /api/password-reset-requests`
+accepts a JSON `email` and returns the same HTTP 202 message for existing and
+unknown accounts. Existing accounts receive a queued SendGrid email linking to
+`/reset-password?_locale=es#<token>`. The token is removed from the address bar and
+submitted with the new password to `POST /api/password-resets`.
+
+Tokens expire after `PASSWORD_RESET_TTL` seconds (3,600 by default), are stored
+only as SHA-256 hashes in user records, and are consumed atomically with the password update. A new request
+invalidates the previous link. Passwords follow the existing 12-character minimum
+and 72-byte maximum. Resetting a password does not verify an unverified account.
+
+Before deployment, apply `Version20260930120000` and configure
+`PASSWORD_RESET_BASE_URL` to the public HTTPS origin. Both
+`SENDGRID_PASSWORD_RESET_TEMPLATE_ES` and `SENDGRID_PASSWORD_RESET_TEMPLATE_EN`
+default to `d-94364cdab2c64321b691171c8d4bf420`. The template receives `url`, `ttl`
+(in seconds), and `locale`; its subject and body remain managed in SendGrid.
+Verify that the published template uses these variable names. The existing
+SendGrid transport, verified sender, and Messenger consumer must be configured.
+Queued delivery delays do not extend the token lifetime. `PASSWORD_RESET_TTL`
+must be a positive integer; the same configured lifetime is sent to the template.
+Changing it affects new links; existing tokens retain their stored expiry.
+The UI describes a temporary link so it remains accurate when the lifetime changes.
+
+Recovery requests are limited per normalized email address, including unknown
+accounts. `PASSWORD_RESET_REQUEST_LIMIT` defaults to `3`, and
+`PASSWORD_RESET_REQUEST_INTERVAL` defaults to `1 hour`. The limit must be a
+positive integer. A fixed window starts with
+the first request. Requests beyond the limit return a translated HTTP 429 response
+with `Retry-After`, without replacing the token or enqueueing another email.
+Rejected requests do not extend the window. Different emails have separate quotas.
+Valid requests consume quota even if subsequent email enqueueing fails.
+
+Template validation, queue insertion, or encryption failures roll back the reset
+token and email transaction. The API still returns the same generic HTTP 202
+response for registered and unknown emails, preventing delivery outages from
+revealing account existence. An existing reset link remains valid, and failed
+attempts still consume request quota. Server-side error logs record the exception
+class without recipients, tokens, payloads, exception messages, or traces.
+Monitor these logs: HTTP 202 acknowledges a request and does not guarantee email
+delivery. Response timing is not normalized.
+
+Symfony RateLimiter uses the dedicated filesystem pool
+`cache.password_reset_requests` and a `flock` lock factory, so counters survive
+separate HTTP requests and are protected against concurrent consumption on one
+host. Multiple application hosts must use a shared cache pool and lock store.
+Clearing this cache pool resets its counters. The request limit and token lifetime
+are independent settings.
+
+Tests replace template identifiers and never contact SendGrid. Set
+`PASSWORD_RESET_MIGRATION_TEST_HOST` to a disposable MariaDB 11.4 database with
+`migration_test` credentials and the database name `nurschool_migration_test` to
+run the real migration/reversal test. Boundary and concurrent-consumption tests
+use a disposable SQLite database.
+
+## Password reset submission limits
+
+Password changes at `POST /api/password-resets` have a separate sliding-window
+limit per client IP: `PASSWORD_RESET_SUBMISSION_LIMIT` defaults to `10` and
+`PASSWORD_RESET_SUBMISSION_INTERVAL` defaults to `15 minutes`. Invalid tokens,
+passwords, and malformed JSON consume quota before parsing or password hashing.
+Blocked attempts receive translated HTTP 429 with `Retry-After`; they do not
+consume the reset token or change the password. Requests without a client IP
+are rejected with HTTP 429. The email-request quota remains independent.
+
+The dedicated filesystem pool `cache.password_reset_submissions` and `flock`
+lock provide persistent, concurrent-safe counters on one host. Multiple hosts
+need shared cache and lock storage. Clients behind a shared IP share the quota.
+Symfony obtains the address through `Request::getClientIp()`: configure
+`framework.trusted_proxies` and `framework.trusted_headers` for the actual proxy
+deployment, without trusting arbitrary client-supplied forwarded headers. Add
+a limit at the reverse proxy or load balancer to reject high-volume traffic
+before PHP. Clearing the dedicated cache pool resets submission counters.
+
+## Encrypted email queues
+
+Both Doctrine transports (`sendgrid` and `failed`) use
+`EncryptedQueueSerializer`. `PayloadCipher` applies authenticated AES-256-GCM
+with a fresh 12-byte nonce and a 16-byte authentication tag to the serialized
+message and headers. Only versioned ciphertext and empty headers are stored in
+`messenger_messages`; recipients, URL tokens, and retry/failure metadata are
+inside the encrypted payload. The worker authenticates and decrypts bytes before
+PHP deserialization, then sends the original template data to SendGrid. It
+rejects tampered, wrong-key, unsupported-version, and plaintext payloads.
+Password-reset links and hash-based token validation remain unchanged.
+
+Set `QUEUE_ENCRYPTION_KEY` to a base64-encoded random 32-byte key, for example:
+
+```sh
+php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
+```
+
+Use the same key for web producers, queue consumers, failure-queue commands, and
+all application hosts. Keep it in a secret manager or an ignored local environment
+file, outside source control and database backups. There is no default production
+key; an absent or invalid key prevents queue use. Automated tests use a dedicated
+test-only key. OpenSSL is required and declared in Composer.
+
+Before starting upgraded workers, stop producers and consumers and run
+`php bin/console app:queue:encrypt-existing`. The command encrypts existing
+`sendgrid` and `failed` rows without deserializing objects, preserves message IDs,
+queue names and timestamps, runs atomically, and can be rerun safely. Back up the
+key separately, then restart producers and workers. Do not replace the key while
+messages encrypted with it remain in either queue; this version has one active
+key and requires draining both queues before key rotation.
+
+This protects newly written and migrated queue rows. Previously created database
+backups still contain their historical plaintext tokens and must be handled
+separately; encrypting current rows cannot rewrite those backups.

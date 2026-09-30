@@ -39,4 +39,20 @@ final class LocalizedErrorSubscriberTest extends TestCase
         return [[400, 'error.400'], [401, 'error.401'], [403, 'error.403'], [404, 'error.404'],
             [405, 'error.405'], [415, 'error.415'], [422, 'error.422'], [429, 'error.429'], [500, 'error.generic']];
     }
+
+    public function testPasswordResetSubmissionLimitUsesItsTranslationAndRetryHeader(): void
+    {
+        $translator = $this->createMock(TranslatorInterface::class);
+        $translator->expects(self::once())->method('trans')->with('password_reset.submissions_throttled', [], null, 'en')->willReturn('Please wait.');
+        $subscriber = new LocalizedErrorSubscriber($translator, new Environment(new ArrayLoader()));
+        $request = Request::create('/api/password-resets', 'POST');
+        $request->attributes->set('_route', 'api_password_resets');
+        $request->setLocale('en');
+        $exception = new \Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException(120, 'Internal diagnostics');
+        $event = new ExceptionEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, $exception);
+        $subscriber->onException($event);
+        self::assertSame(429, $event->getResponse()->getStatusCode());
+        self::assertSame('120', $event->getResponse()->headers->get('Retry-After'));
+        self::assertSame(['message' => 'Please wait.'], json_decode($event->getResponse()->getContent(), true));
+    }
 }

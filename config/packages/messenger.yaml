@@ -5,6 +5,7 @@ framework:
             sendgrid:
                 # The registration transaction and queue must use the same connection.
                 dsn: 'doctrine://default'
+                serializer: Nurschool\Messenger\EncryptedQueueSerializer
                 options:
                     queue_name: sendgrid
                     auto_setup: false
@@ -15,6 +16,7 @@ framework:
                     max_delay: 60000
             failed:
                 dsn: 'doctrine://default'
+                serializer: Nurschool\Messenger\EncryptedQueueSerializer
                 options:
                     queue_name: failed
                     auto_setup: false
